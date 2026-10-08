@@ -23,6 +23,8 @@ class Pen(
     fills: IntArray?,
     alpha: Int = 255,
     glow: Float = 0f,
+    /** Draw eyes and other "dark" details in ink, for white line art over black-filled shapes. */
+    private val darkInk: Boolean = false,
 ) {
     val c: Canvas get() = s.canvas
     private val linePaint = s.stroke(ink, width, alpha, glow)
@@ -78,9 +80,25 @@ class Pen(
     fun dot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, inkPaint)
 
     /** Eyes and noses: black on a filled sticker, ink on line art. */
-    fun darkDot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, if (filled) darkPaint else inkPaint)
+    fun darkDot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, if (filled && !darkInk) darkPaint else inkPaint)
 
-    fun darkOval(l: Float, t: Float, r: Float, b: Float) = c.drawOval(RectF(l, t, r, b), if (filled) darkPaint else inkPaint)
+    /** Always black: highlights cut into ink, or holes. */
+    fun blackDot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, darkPaint)
+
+    /** Parallel hatching clipped to [shape]. */
+    fun hatch(shape: Path, spacing: Float, angle: Float) {
+        c.save()
+        c.clipPath(shape)
+        c.rotate(angle)
+        var x = -3f
+        while (x < 3f) {
+            c.drawLine(x, -3f, x, 3f, linePaint)
+            x += spacing
+        }
+        c.restore()
+    }
+
+    fun darkOval(l: Float, t: Float, r: Float, b: Float) = c.drawOval(RectF(l, t, r, b), if (filled && !darkInk) darkPaint else inkPaint)
 }
 
 /** Runs [block] with the canvas moved so (x, y) is the origin and one unit equals [size]. */
@@ -890,141 +908,6 @@ object SpaceDoodles : Style("space_doodles", "Space Doodles", Category.DOODLE) {
             }
             p.arc(-0.6f, -0.97f, 0.6f, 0.27f, 200f, 60f)
             p.rrect(-0.55f, 0.12f, 0.55f, 0.32f, 0.1f)
-        }
-    }
-}
-
-/** Comic-book pop: POW/BAM bursts, halftone dots, speech bubbles and action lines. */
-object ComicPop : Style("comic_pop", "Comic Pop", Category.DOODLE) {
-    override val autoPalettes = listOf("candy", "sunset", "lava", "acid", "cyan", "sakura")
-
-    private val words = arrayOf("POW!", "BAM!", "ZAP!", "BOOM!", "WOW!", "KAPOW!", "WHAM!", "ZOOM!", "OMG!")
-    private val bubbleText = arrayOf("?!", "♥", "...", "LOL", "HA!", "!!", "ZzZ")
-
-    override fun draw(s: Scene) {
-        val pal = s.palette.colors
-        val bursts = s.i(3, 6)
-        val placed = ArrayList<FloatArray>()
-        repeat(bursts) {
-            var x = 0f
-            var y = 0f
-            var r = 0f
-            for (attempt in 0 until 12) {
-                x = s.f(140f, s.w - 140f)
-                y = s.f(140f, s.h - 140f)
-                r = s.f(100f, 160f)
-                if (placed.none { (it[0] - x) * (it[0] - x) + (it[1] - y) * (it[1] - y) < (it[2] + r) * (it[2] + r) }) break
-            }
-            placed.add(floatArrayOf(x, y, r))
-            burst(s, x, y, r, pal[s.i(0, pal.size)], words[s.i(0, words.size)])
-        }
-        repeat(s.i(2, 4)) {
-            bubble(s, s.f(100f, s.w - 100f), s.f(100f, s.h - 100f), s.f(50f, 80f), bubbleText[s.i(0, bubbleText.size)])
-        }
-        repeat(s.count(5)) {
-            halftone(s, s.f(0f, s.w), s.f(0f, s.h), s.f(60f, 130f), pal[s.i(0, pal.size)])
-        }
-        // Little extras: bolts, stars, sparkles and hearts.
-        val extras = intArrayOf(0, 1, 4, 10, 7)
-        repeat(s.count(16)) {
-            Doodles.draw(
-                s, extras[s.i(0, extras.size)], s.f(0f, s.w), s.f(0f, s.h), s.f(16f, 30f), s.f(-30f, 30f),
-                Color.WHITE, 2.6f, intArrayOf(pal[s.i(0, pal.size)]),
-            )
-        }
-    }
-
-    private fun burst(s: Scene, x: Float, y: Float, r: Float, color: Int, word: String) {
-        // Action lines radiating out.
-        val lines = s.stroke(Color.WHITE, 2.2f, 170)
-        for (k in 0 until 18) {
-            val a = k * TAU / 18f + s.f(-0.08f, 0.08f)
-            val r1 = r * s.f(1.15f, 1.3f)
-            val r2 = r * s.f(1.45f, 1.9f)
-            s.canvas.drawLine(x + cos(a) * r1, y + sin(a) * r1, x + cos(a) * r2, y + sin(a) * r2, lines)
-        }
-        val spikes = s.i(10, 16)
-        val path = Path()
-        for (k in 0 until spikes * 2) {
-            val rr = if (k % 2 == 0) r * s.f(0.92f, 1.1f) else r * s.f(0.6f, 0.72f)
-            val a = k * PI.toFloat() / spikes
-            val px = x + cos(a) * rr
-            val py = y + sin(a) * rr
-            if (k == 0) path.moveTo(px, py) else path.lineTo(px, py)
-        }
-        path.close()
-        s.canvas.drawPath(path, s.fill(color))
-        // Halftone shading inside the burst.
-        s.canvas.save()
-        s.canvas.clipPath(path)
-        val shade = s.fill(Color.BLACK, 60)
-        var hy = y - r
-        while (hy < y + r) {
-            var hx = x - r
-            while (hx < x + r) {
-                val t = ((hx - x) + (hy - y)) / (2f * r) + 0.5f
-                val dr = 4.5f * t.coerceIn(0f, 1f)
-                if (dr > 0.6f) s.canvas.drawCircle(hx, hy, dr, shade)
-                hx += 12f
-            }
-            hy += 12f
-        }
-        s.canvas.restore()
-        s.canvas.drawPath(path, s.stroke(Color.WHITE, 4f))
-
-        val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = r * (if (word.length > 4) 0.42f else 0.55f)
-            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD_ITALIC)
-            textAlign = Paint.Align.CENTER
-        }
-        val ty = y + tp.textSize * 0.35f
-        s.canvas.save()
-        s.canvas.rotate(s.f(-14f, 8f), x, y)
-        tp.style = Paint.Style.STROKE
-        tp.strokeWidth = tp.textSize * 0.16f
-        tp.strokeJoin = Paint.Join.ROUND
-        tp.color = Color.BLACK
-        s.canvas.drawText(word, x + 4f, ty + 4f, tp)
-        tp.color = Color.WHITE
-        s.canvas.drawText(word, x, ty, tp)
-        tp.style = Paint.Style.FILL
-        tp.color = Color.BLACK
-        s.canvas.drawText(word, x, ty, tp)
-        s.canvas.restore()
-    }
-
-    private fun bubble(s: Scene, x: Float, y: Float, r: Float, text: String) {
-        val path = Path()
-        path.addOval(RectF(x - r * 1.3f, y - r, x + r * 1.3f, y + r), Path.Direction.CW)
-        val tail = Path()
-        val dir = if (s.chance(0.5f)) -1f else 1f
-        tail.moveTo(x + dir * r * 0.3f, y + r * 0.8f)
-        tail.lineTo(x + dir * r * 1.1f, y + r * 1.6f)
-        tail.lineTo(x + dir * r * 0.75f, y + r * 0.6f)
-        tail.close()
-        path.op(tail, Path.Op.UNION)
-        s.canvas.drawPath(path, s.fill(Color.BLACK))
-        s.canvas.drawPath(path, s.stroke(Color.WHITE, 3.2f))
-        val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = r * 0.7f
-            typeface = Typeface.DEFAULT_BOLD
-            textAlign = Paint.Align.CENTER
-        }
-        s.canvas.drawText(text, x, y + tp.textSize * 0.35f, tp)
-    }
-
-    private fun halftone(s: Scene, x: Float, y: Float, r: Float, color: Int) {
-        val paint = s.fill(color, 210)
-        var hy = y - r
-        while (hy <= y + r) {
-            var hx = x - r
-            while (hx <= x + r) {
-                val d = sqrt((hx - x) * (hx - x) + (hy - y) * (hy - y)) / r
-                if (d < 1f) s.canvas.drawCircle(hx, hy, 5f * (1f - d), paint)
-                hx += 13f
-            }
-            hy += 13f
         }
     }
 }

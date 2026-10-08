@@ -35,6 +35,7 @@ object Palettes {
         Palette("violet", "Violet", intArrayOf(c(0xFFB388FF), c(0xFF7C4DFF), c(0xFFEA80FC))),
         Palette("gold", "Gold", intArrayOf(c(0xFFFFD740), c(0xFFFFC107), c(0xFFFFE0B2))),
         Palette("candy", "Candy", intArrayOf(c(0xFFF47C7C), c(0xFFFFC97A), c(0xFF7FD8A8), c(0xFFC98BD6), c(0xFF9ED9E0))),
+        Palette("graffiti", "Graffiti", intArrayOf(c(0xFFFF5E7E), c(0xFFFFA552), c(0xFF3EE6C1), c(0xFF4C8DFF), c(0xFFB36BFF))),
         Palette("hue", "Hue Shift", intArrayOf(c(0xFF00E5A0), c(0xFF2D7BFF), c(0xFF8C5CFF), c(0xFFFF3D7F))),
     )
 
