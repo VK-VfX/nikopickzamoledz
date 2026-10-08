@@ -21,6 +21,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 - **Save** as a lossless PNG at screen size, QHD+ (1440×3200) or 4K (2160×3840). Files go to `Pictures/Zamoled`, and no storage permission is needed.
 - **Apply** to the home screen, lock screen or both.
 - **Favorites**, **Shuffle** (new seed) and **Surprise me**. The grid loads more as you scroll.
+- **Expressive Material 3 UI:** a bottom navigation bar with Explore, Categories and Favorites; a "Today's picks" carousel; category icons in their own morphing shapes; shared-element transitions from thumbnail to full screen; a floating editing toolbar; and spring motion throughout.
 
 ## Get the APK
 

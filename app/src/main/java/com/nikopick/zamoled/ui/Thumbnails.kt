@@ -17,22 +17,28 @@ import kotlin.math.roundToInt
 val renderDispatcher = Dispatchers.Default.limitedParallelism(3)
 
 object ThumbCache {
-    const val WIDTH = 360
+    const val SMALL = 360
+    const val LARGE = 720
 
-    private val cache = object : LruCache<String, Bitmap>(48 * 1024) {
+    private val cache = object : LruCache<String, Bitmap>(64 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
     }
 
-    fun peek(spec: WallpaperSpec): Bitmap? = cache.get(spec.key)
+    private fun key(spec: WallpaperSpec, width: Int) = "${spec.key}@$width"
 
-    suspend fun load(spec: WallpaperSpec): Bitmap = withContext(renderDispatcher) {
-        cache.get(spec.key) ?: Renderer.render(spec, WIDTH, (WIDTH / Screen.aspect).roundToInt())
-            .also { cache.put(spec.key, it) }
+    fun peek(spec: WallpaperSpec, width: Int): Bitmap? = cache.get(key(spec, width))
+
+    /** Best already-rendered version of a spec, used as an instant placeholder. */
+    fun peekBest(spec: WallpaperSpec): Bitmap? = peek(spec, LARGE) ?: peek(spec, SMALL)
+
+    suspend fun load(spec: WallpaperSpec, width: Int): Bitmap = withContext(renderDispatcher) {
+        cache.get(key(spec, width)) ?: Renderer.render(spec, width, (width / Screen.aspect).roundToInt())
+            .also { cache.put(key(spec, width), it) }
     }
 }
 
 @Composable
-fun rememberThumbnail(spec: WallpaperSpec): State<Bitmap?> =
-    produceState(initialValue = ThumbCache.peek(spec), spec.key) {
-        if (value == null) value = ThumbCache.load(spec)
+fun rememberThumbnail(spec: WallpaperSpec, width: Int = ThumbCache.SMALL): State<Bitmap?> =
+    produceState(initialValue = ThumbCache.peek(spec, width), spec.key, width) {
+        if (value == null) value = ThumbCache.load(spec, width)
     }
