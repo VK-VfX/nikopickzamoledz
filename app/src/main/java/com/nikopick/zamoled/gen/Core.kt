@@ -34,6 +34,8 @@ object Palettes {
         Palette("acid", "Acid", intArrayOf(c(0xFFC6FF00), c(0xFF76FF03), c(0xFFF4FF81))),
         Palette("violet", "Violet", intArrayOf(c(0xFFB388FF), c(0xFF7C4DFF), c(0xFFEA80FC))),
         Palette("gold", "Gold", intArrayOf(c(0xFFFFD740), c(0xFFFFC107), c(0xFFFFE0B2))),
+        Palette("candy", "Candy", intArrayOf(c(0xFFF47C7C), c(0xFFFFC97A), c(0xFF7FD8A8), c(0xFFC98BD6), c(0xFF9ED9E0))),
+        Palette("hue", "Hue Shift", intArrayOf(c(0xFF00E5A0), c(0xFF2D7BFF), c(0xFF8C5CFF), c(0xFFFF3D7F))),
     )
 
     /** Material You colours from the system theme; set by the app theme at startup. */
@@ -42,10 +44,16 @@ object Palettes {
 
     val choices: List<Palette> get() = listOf(you) + all
 
-    fun resolve(id: String, seed: Long): Palette = when (id) {
-        "auto" -> all[Random(seed xor 0x5DEECE66DL).nextInt(all.size)]
+    fun byId(id: String): Palette = all.firstOrNull { it.id == id } ?: all[0]
+
+    fun resolve(id: String, seed: Long, style: Style? = null): Palette = when (id) {
+        "auto" -> {
+            val r = Random(seed xor 0x5DEECE66DL)
+            val preferred = style?.autoPalettes
+            if (preferred.isNullOrEmpty()) all[r.nextInt(all.size)] else byId(preferred[r.nextInt(preferred.size)])
+        }
         "you" -> you
-        else -> all.firstOrNull { it.id == id } ?: all[0]
+        else -> byId(id)
     }
 }
 
@@ -73,6 +81,7 @@ data class WallpaperSpec(
 ) {
     val key: String get() = "$styleId|$seed|$paletteId|$density"
     val style: Style get() = Styles.byId(styleId)
+    val palette: Palette get() = Palettes.resolve(paletteId, seed, style)
 
     companion object {
         fun fromKey(key: String): WallpaperSpec? {
@@ -226,6 +235,8 @@ class Scene(
 }
 
 abstract class Style(val id: String, val name: String, val category: Category) {
+    /** Palettes "Auto" picks from for this style; null means any palette. */
+    open val autoPalettes: List<String>? = null
     abstract fun draw(s: Scene)
 }
 
@@ -243,7 +254,7 @@ object Renderer {
             w = VIRTUAL_WIDTH,
             h = heightPx / scale,
             rnd = Random(spec.seed),
-            palette = Palettes.resolve(spec.paletteId, spec.seed),
+            palette = spec.palette,
             density = spec.density,
             noise = Noise(spec.seed),
         )
@@ -269,7 +280,7 @@ object Renderer {
 
 object Styles {
     val all: List<Style> = listOf(
-        DoodleScatter, DoodlePattern, DoodleSpotlight,
+        DoodleScatter, DoodlePattern, DoodleSpotlight, SpaceDoodles, ComicPop, DoodleStickers,
         Halo, Horizon, Silk,
         PolygonTunnel, DotMatrix, Isometric,
         Starfield, Constellations, Eclipse,

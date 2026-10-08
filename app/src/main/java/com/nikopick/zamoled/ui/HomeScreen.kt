@@ -442,7 +442,7 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
     val interaction = remember { MutableInteractionSource() }
     val bitmap by rememberThumbnail(spec, ThumbCache.LARGE)
     val shape = RoundedCornerShape(32.dp)
-    val palette = Palettes.resolve(spec.paletteId, spec.seed)
+    val palette = spec.palette
     Card(
         onClick = onClick,
         shape = shape,

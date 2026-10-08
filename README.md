@@ -4,10 +4,10 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **39 generators in 13 categories**
+- **42 generators in 13 categories**
   | Category  | Styles |
   |-----------|--------|
-  | Doodle    | Doodle Scatter, Doodle Pattern, Doodle Spotlight (14 hand-drawn icons: stars, hearts, planets, bolts, clouds, moons, notes…) |
+  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Space Doodles (astronaut pets, banded planets, rockets, satellites), Comic Pop (POW/BAM bursts, halftones, speech bubbles). 40 comic icons: ghosts, skulls, cats, controllers, guitars, atoms, rainbows, pizza, UFOs… |
   | Minimal   | Halo, Horizon, Silk |
   | Geometric | Polygon Tunnel, Dot Matrix, Isometric |
   | Space     | Starfield, Constellations, Eclipse |
@@ -22,7 +22,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
   | Light     | Bokeh, Fireflies, Light Trails |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
-- **11 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Material You), or Auto.
+- **13 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
 - **Detail slider.** Turn the density of stars, doodles, lines and particles up or down.
 - **Save** as a lossless PNG at screen size, QHD+ (1440×3200) or 4K (2160×3840). Files go to `Pictures/Zamoled`, and no storage permission is needed.
 - **Apply** to the home screen, lock screen or both.

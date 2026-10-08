@@ -512,7 +512,7 @@ private fun TopControls(spec: WallpaperSpec, favorite: Boolean, onBack: () -> Un
                 Column {
                     Text(spec.style.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
                     Text(
-                        "${spec.style.category.label} · ${Palettes.resolve(spec.paletteId, spec.seed).name}",
+                        "${spec.style.category.label} · ${spec.palette.name}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
