@@ -4,7 +4,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **21 generators in 7 categories**
+- **39 generators in 13 categories**
   | Category  | Styles |
   |-----------|--------|
   | Doodle    | Doodle Scatter, Doodle Pattern, Doodle Spotlight (14 hand-drawn icons: stars, hearts, planets, bolts, clouds, moons, notes…) |
@@ -14,6 +14,12 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
   | Nature    | Aurora (northern lights), Topographic, Mountains |
   | Abstract  | Flow Field, Waves, Mandala |
   | Neon      | Neon Shapes, Circuit, Synthwave |
+  | Audio     | Spectrum, Radial Beat, Oscilloscope |
+  | Mystic    | Flower of Life, Metatron, Moon Phases |
+  | City      | Skyline, Neon Rain, Night Highway |
+  | Glitch    | Glitch, Data Rain, Pixel Drip |
+  | Pixel     | Pixel Space, Pixel Hearts, Pixel Peaks |
+  | Light     | Bokeh, Fireflies, Light Trails |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **11 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Material You), or Auto.
@@ -33,7 +39,20 @@ Every push runs the **Build APK** workflow (`.github/workflows/build.yml`):
 
 Each push to the release branch also publishes both APKs as the GitHub Release `v<versionName>` (bump `versionName` in `app/build.gradle.kts` for a new release). Pushing a tag like `v1.0.1` works too.
 
-> The release APK is signed with the standard debug key so you can sideload it. To publish on the Play Store, set up your own signing config.
+### Signing (so updates install over the old app)
+
+Android only accepts an update when it's signed with the same key as the installed app. CI signs every build with one permanent key, which it reads from two repository secrets (**Settings → Secrets and variables → Actions**):
+
+| Secret | Value |
+|---|---|
+| `ZAMOLED_KEYSTORE_BASE64` | the keystore file (`.jks`), base64-encoded |
+| `ZAMOLED_KEY_PASSWORD` | the keystore and key password (key alias `zamoled`) |
+
+Without these secrets, CI still builds APKs, but it signs them with a throwaway key and skips publishing the release.
+
+To create a key: `keytool -genkeypair -keystore zamoled.jks -storetype PKCS12 -alias zamoled -keyalg RSA -keysize 2048 -validity 36500`, then `base64 -w0 zamoled.jks`. Keep the `.jks` file and password safe: losing them means users have to uninstall before they can install your next build.
+
+The debug build uses the app id `com.nikopick.zamoled.debug`, so it installs alongside the release build.
 
 ## Build locally
 

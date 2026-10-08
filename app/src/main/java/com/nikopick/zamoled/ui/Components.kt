@@ -12,6 +12,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.BrokenImage
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.GridOn
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LocationCity
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.BubbleChart
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Gesture
@@ -59,6 +65,12 @@ val Category.icon: ImageVector
         Category.NATURE -> Icons.Rounded.Landscape
         Category.ABSTRACT -> Icons.Rounded.BubbleChart
         Category.NEON -> Icons.Rounded.Bolt
+        Category.AUDIO -> Icons.Rounded.GraphicEq
+        Category.MYSTIC -> Icons.Rounded.Visibility
+        Category.CITY -> Icons.Rounded.LocationCity
+        Category.GLITCH -> Icons.Rounded.BrokenImage
+        Category.PIXEL -> Icons.Rounded.GridOn
+        Category.LIGHT -> Icons.Rounded.Lightbulb
     }
 
 /** Each category gets its own expressive shape, in the style of Material 3's shape library. */
@@ -70,6 +82,12 @@ fun Category.polygon(): RoundedPolygon = when (this) {
     Category.NATURE -> RoundedPolygon(3, rounding = CornerRounding(0.35f))
     Category.ABSTRACT -> RoundedPolygon.star(12, radius = 1f, innerRadius = 0.86f, rounding = CornerRounding(0.12f))
     Category.NEON -> RoundedPolygon(4, rounding = CornerRounding(0.3f))
+    Category.AUDIO -> RoundedPolygon.star(6, radius = 1f, innerRadius = 0.72f, rounding = CornerRounding(0.2f))
+    Category.MYSTIC -> RoundedPolygon.star(6, radius = 1f, innerRadius = 0.9f, rounding = CornerRounding(0.4f))
+    Category.CITY -> RoundedPolygon(8, rounding = CornerRounding(0.12f))
+    Category.GLITCH -> RoundedPolygon.star(3, radius = 1f, innerRadius = 0.62f, rounding = CornerRounding(0.15f))
+    Category.PIXEL -> RoundedPolygon(4, rounding = CornerRounding(0.06f))
+    Category.LIGHT -> RoundedPolygon.star(10, radius = 1f, innerRadius = 0.62f, rounding = CornerRounding(0.1f))
 }.normalized()
 
 private val Blob: RoundedPolygon = RoundedPolygon.star(4, radius = 1f, innerRadius = 0.9f, rounding = CornerRounding(0.5f)).normalized()

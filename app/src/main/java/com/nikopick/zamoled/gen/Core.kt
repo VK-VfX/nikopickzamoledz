@@ -57,6 +57,12 @@ enum class Category(val label: String) {
     NATURE("Nature"),
     ABSTRACT("Abstract"),
     NEON("Neon"),
+    AUDIO("Audio"),
+    MYSTIC("Mystic"),
+    CITY("City"),
+    GLITCH("Glitch"),
+    PIXEL("Pixel"),
+    LIGHT("Light"),
 }
 
 data class WallpaperSpec(
@@ -270,6 +276,12 @@ object Styles {
         Aurora, Topographic, Mountains,
         FlowField, Waves, Mandala,
         NeonShapes, Circuit, Synthwave,
+        SpectrumBars, CircularSpectrum, Oscilloscope,
+        FlowerOfLife, Metatron, MoonPhases,
+        Skyline, NeonRain, NightHighway,
+        GlitchBlocks, DataRain, PixelDrip,
+        PixelSpace, PixelHearts, PixelLandscape,
+        Bokeh, Fireflies, LightTrails,
     )
 
     fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: all[0]

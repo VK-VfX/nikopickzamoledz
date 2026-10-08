@@ -12,17 +12,37 @@ android {
         applicationId = "com.nikopick.zamoled"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
+    // A permanent key (from GitHub Secrets in CI) signs every build, so each new APK installs as an
+    // update over the last one. Without it, builds fall back to the machine's random debug key.
+    val keystorePath: String? = System.getenv("ZAMOLED_KEYSTORE_PATH")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("sideload") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ZAMOLED_KEY_PASSWORD")
+                keyAlias = System.getenv("ZAMOLED_KEY_ALIAS") ?: "zamoled"
+                keyPassword = System.getenv("ZAMOLED_KEY_PASSWORD")
+            }
+        }
+    }
+    val appSigning = signingConfigs.getByName(if (keystorePath != null) "sideload" else "debug")
+
     buildTypes {
+        debug {
+            // Separate app id so the debug build installs next to the release build instead of clashing.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            signingConfig = appSigning
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key so the release APK can be sideloaded straight from CI.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = appSigning
         }
     }
 

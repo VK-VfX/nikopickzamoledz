@@ -23,7 +23,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Restore signing key
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ZAMOLED_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/zamoled.jks"
+            echo "ZAMOLED_KEYSTORE_PATH=$RUNNER_TEMP/zamoled.jks" >> "$GITHUB_ENV"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ZAMOLED_KEYSTORE_BASE64 secret is not set. APKs are signed with a throwaway key and the release is not published."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build debug and release APKs
+        env:
+          ZAMOLED_KEY_PASSWORD: ${{ secrets.ZAMOLED_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug assembleRelease --stacktrace
@@ -45,7 +61,8 @@ jobs:
 
       # Tag pushes publish their own release; pushes to the release branch publish v<versionName>.
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/hopeful-noether-lcc0fj'
+        # Only publish APKs signed with the permanent key, so every release updates the last one.
+        if: steps.signing.outputs.ready == 'true' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/hopeful-noether-lcc0fj')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.version.outputs.name) }}
