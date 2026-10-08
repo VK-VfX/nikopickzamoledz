@@ -495,7 +495,7 @@ fun WallpaperCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
             )
-            AnimatedVisibility(
+            androidx.compose.animation.AnimatedVisibility(
                 visible = favorite,
                 enter = scaleIn(Motion.bouncy()) + fadeIn(),
                 exit = scaleOut() + fadeOut(),
