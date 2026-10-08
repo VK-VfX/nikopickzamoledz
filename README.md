@@ -30,7 +30,7 @@ Every push runs the **Build APK** workflow (`.github/workflows/build.yml`):
 2. Download the `zamoled-apk` artifact. It holds `zamoled-release.apk` (small, optimised) and `zamoled-debug.apk`.
 3. Install it on your phone. You may need to allow installs from your browser or file manager.
 
-Pushing a tag like `v1.0.0` also attaches both APKs to a GitHub Release.
+Each push to the release branch also publishes both APKs as the GitHub Release `v<versionName>` (bump `versionName` in `app/build.gradle.kts` for a new release). Pushing a tag like `v1.0.1` works too.
 
 > The release APK is signed with the standard debug key so you can sideload it. To publish on the Play Store, set up your own signing config.
 

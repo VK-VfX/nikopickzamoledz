@@ -39,8 +39,28 @@ jobs:
           name: zamoled-apk
           path: out/*.apk
 
+      - name: Read app version
+        id: version
+        run: echo "name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      # Tag pushes publish their own release; pushes to the release branch publish v<versionName>.
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/hopeful-noether-lcc0fj'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.version.outputs.name) }}
+          target_commitish: ${{ github.sha }}
+          name: Zamoled ${{ steps.version.outputs.name }}
+          make_latest: true
+          body: |
+            Generative pitch-black AMOLED wallpapers for Android 10+.
+
+            **Install:** download `zamoled-release.apk` below on your phone and open it (allow installs from your browser if asked).
+            `zamoled-debug.apk` is a debuggable build for testing.
+
+            - 21 styles in 7 categories: Doodle, Minimal, Geometric, Space, Nature, Abstract, Neon
+            - 11 palettes, including Material You
+            - Detail slider and a live "pitch black %" readout
+            - Save PNG at screen size, QHD+ or 4K; set as home, lock or both
+            - Favorites, Shuffle and Surprise me
           files: out/*.apk
