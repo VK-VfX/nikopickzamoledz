@@ -73,6 +73,7 @@ enum class Category(val label: String) {
     PIXEL("Pixel"),
     LIGHT("Light"),
     GOTHIC("Gothic"),
+    PORTRAIT("Portraits"),
 }
 
 data class WallpaperSpec(
@@ -167,6 +168,9 @@ class Scene(
     val density: Float,
     val noise: Noise,
 ) {
+    /** Device pixels per virtual unit, so styles that load bitmaps can pick a sensible resolution. */
+    var pxPerUnit: Float = 1f
+
     val cx: Float get() = w / 2f
     val cy: Float get() = h / 2f
 
@@ -260,6 +264,7 @@ object Renderer {
             density = spec.density,
             noise = Noise(spec.seed),
         )
+        scene.pxPerUnit = scale
         spec.style.draw(scene)
         return bmp
     }
@@ -296,7 +301,7 @@ object Styles {
         GlitchBust, ErrorWindows, DataRain,
         PixelCastle, PixelQuest, PixelSpace, PixelLandscape,
         LanternFestival, Candles, Jellyfish, Fireflies,
-    )
+    ) + Portraits.styles
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(

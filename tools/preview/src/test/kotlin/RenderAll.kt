@@ -9,6 +9,8 @@ import java.io.File
 class RenderAll {
     @Test
     fun render() {
+        val assetDir = java.io.File("/home/user/nikopickzamoledz/app/src/main/assets/portraits")
+        PhotoLibrary.loader = { asset, _ -> java.io.File(assetDir, "$asset.webp").readBytes().let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) } }
         val out = File(System.getProperty("preview.out")!!).apply { mkdirs() }
         val only = System.getProperty("preview.only").orEmpty().split(",").filter { it.isNotBlank() }
         val seeds = System.getProperty("preview.seed").orEmpty().split(",").mapNotNull { it.toLongOrNull() }.ifEmpty { listOf(1L) }

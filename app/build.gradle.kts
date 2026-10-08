@@ -12,8 +12,8 @@ android {
         applicationId = "com.nikopick.zamoled"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "2.0.1"
+        versionCode = 9
+        versionName = "2.1.0"
     }
 
     // A permanent key (from GitHub Secrets in CI) signs every build, so each new APK installs as an

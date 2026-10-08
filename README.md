@@ -4,7 +4,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **50 illustrated styles across 13 worlds**, each with its own art direction
+- **61 wallpapers across 13 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
   | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Sketch (cute cats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
@@ -20,6 +20,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
   | Glitch    | Aesthetic (glitched marble bust), Error.exe windows, Data Rain |
   | Pixel     | Pixel Castle, Pixel Quest (hero, slime, chest, HUD), Pixel Space, Pixel Peaks |
   | Light     | Lantern Festival, Candlelight, Jellyfish, Fireflies |
+  | Portraits | 14 AI-generated portraits cut out onto pure AMOLED black, each in three looks: natural colour, colour with a halo and rim light, and noir |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
@@ -75,3 +76,7 @@ To add a new style, subclass `Style`, draw with the `Scene` helpers (`stroke`, `
 ## Previewing the art on a computer
 
 `tools/preview` renders the generators to PNGs without a phone. See `tools/preview/README.md`.
+
+## Portraits
+
+The Portraits world uses AI-generated photographs, cut out and placed on pure black. They are bundled as WebP files in `app/src/main/assets/portraits/` (about 2 MB in total). See `tools/portraits` for how they are made.
