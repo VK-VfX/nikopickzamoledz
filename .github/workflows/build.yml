@@ -23,23 +23,60 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Restore signing key
-        id: signing
+      # Signing: every build must use the same key, or Android refuses to install it as an update.
+      # 1) Repository secrets, if set, always win.
+      - name: Use signing key from secrets
+        id: secret_key
         env:
           KEYSTORE_B64: ${{ secrets.ZAMOLED_KEYSTORE_BASE64 }}
+          KEY_PASSWORD: ${{ secrets.ZAMOLED_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/zamoled.jks"
+            echo "::add-mask::$KEY_PASSWORD"
             echo "ZAMOLED_KEYSTORE_PATH=$RUNNER_TEMP/zamoled.jks" >> "$GITHUB_ENV"
+            echo "ZAMOLED_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
             echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::ZAMOLED_KEYSTORE_BASE64 secret is not set. APKs are signed with a throwaway key and the release is not published."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # 2) Otherwise CI keeps its own key in the repository's private Actions cache: created on the
+      #    first run, then reused. Pull requests (which may come from forks) never touch it.
+      - name: Restore CI signing key
+        id: key_cache
+        if: steps.secret_key.outputs.ready != 'true' && github.event_name != 'pull_request'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.zamoled-signing
+          key: zamoled-signing-key-v1
+
+      - name: Create CI signing key
+        if: steps.secret_key.outputs.ready != 'true' && github.event_name != 'pull_request' && steps.key_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.zamoled-signing
+          openssl rand -hex 24 > ~/.zamoled-signing/password
+          PW="$(cat ~/.zamoled-signing/password)"
+          keytool -genkeypair -keystore ~/.zamoled-signing/zamoled.jks -storetype PKCS12 \
+            -alias zamoled -keyalg RSA -keysize 2048 -validity 36500 \
+            -storepass "$PW" -keypass "$PW" -dname "CN=Zamoled"
+
+      - name: Save CI signing key
+        if: steps.secret_key.outputs.ready != 'true' && github.event_name != 'pull_request' && steps.key_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.zamoled-signing
+          key: zamoled-signing-key-v1
+
+      - name: Use CI signing key
+        id: ci_key
+        if: steps.secret_key.outputs.ready != 'true' && github.event_name != 'pull_request'
+        run: |
+          PW="$(cat ~/.zamoled-signing/password)"
+          echo "::add-mask::$PW"
+          echo "ZAMOLED_KEYSTORE_PATH=$HOME/.zamoled-signing/zamoled.jks" >> "$GITHUB_ENV"
+          echo "ZAMOLED_KEY_PASSWORD=$PW" >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
       - name: Build debug and release APKs
-        env:
-          ZAMOLED_KEY_PASSWORD: ${{ secrets.ZAMOLED_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug assembleRelease --stacktrace
@@ -62,7 +99,7 @@ jobs:
       # Tag pushes publish their own release; pushes to the release branch publish v<versionName>.
       - name: Publish release
         # Only publish APKs signed with the permanent key, so every release updates the last one.
-        if: steps.signing.outputs.ready == 'true' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/hopeful-noether-lcc0fj')
+        if: (steps.secret_key.outputs.ready == 'true' || steps.ci_key.outputs.ready == 'true') && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/hopeful-noether-lcc0fj')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.version.outputs.name) }}
@@ -72,7 +109,7 @@ jobs:
           body: |
             Generative pitch-black AMOLED wallpapers for Android 10+.
 
-            **Install:** download `zamoled-release.apk` below on your phone and open it (allow installs from your browser if asked).
+            **Install:** download `zamoled-release.apk` below on your phone and open it (allow installs from your browser if asked). From 1.2.0 on, the app tells you when a new version is out, and new versions install over the old one.
             `zamoled-debug.apk` is a debuggable build for testing.
 
             - 21 styles in 7 categories: Doodle, Minimal, Geometric, Space, Nature, Abstract, Neon

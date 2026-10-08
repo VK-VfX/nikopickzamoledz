@@ -26,6 +26,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 - **Detail slider.** Turn the density of stars, doodles, lines and particles up or down.
 - **Save** as a lossless PNG at screen size, QHD+ (1440×3200) or 4K (2160×3840). Files go to `Pictures/Zamoled`, and no storage permission is needed.
 - **Apply** to the home screen, lock screen or both.
+- **Update banner:** the app checks this repo's latest release and offers a one-tap download when a newer version is out.
 - **Favorites**, **Shuffle** (new seed) and **Surprise me**. The grid loads more as you scroll.
 - **Expressive Material 3 UI:** a bottom navigation bar with Explore, Categories and Favorites; a "Today's picks" carousel; category icons in their own morphing shapes; shared-element transitions from thumbnail to full screen; a floating editing toolbar; and spring motion throughout.
 
@@ -48,7 +49,7 @@ Android only accepts an update when it's signed with the same key as the install
 | `ZAMOLED_KEYSTORE_BASE64` | the keystore file (`.jks`), base64-encoded |
 | `ZAMOLED_KEY_PASSWORD` | the keystore and key password (key alias `zamoled`) |
 
-Without these secrets, CI still builds APKs, but it signs them with a throwaway key and skips publishing the release.
+These secrets are optional. Without them, CI creates its own key on the first build and keeps it in the repository's private Actions cache, so builds still share one key and update over each other. Add the secrets if you want a key you control and back up yourself. Note that switching keys later means one more uninstall.
 
 To create a key: `keytool -genkeypair -keystore zamoled.jks -storetype PKCS12 -alias zamoled -keyalg RSA -keysize 2048 -validity 36500`, then `base64 -w0 zamoled.jks`. Keep the `.jks` file and password safe: losing them means users have to uninstall before they can install your next build.
 

@@ -1,5 +1,15 @@
 package com.nikopick.zamoled.ui
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import com.nikopick.zamoled.data.UpdateInfo
+import com.nikopick.zamoled.data.Updates
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -128,6 +138,7 @@ class HomeState(
     var filter by mutableStateOf(FILTER_ALL)
     var batch by mutableLongStateOf(System.currentTimeMillis())
     var pages by mutableIntStateOf(1)
+    var update by mutableStateOf<UpdateInfo?>(null)
 }
 
 @Composable
@@ -135,7 +146,9 @@ fun rememberHomeState(): HomeState {
     val explore = rememberLazyGridState()
     val categories = rememberLazyGridState()
     val favorites = rememberLazyGridState()
-    return remember { HomeState(explore, categories, favorites) }
+    val state = remember { HomeState(explore, categories, favorites) }
+    LaunchedEffect(Unit) { state.update = Updates.check() }
+    return state
 }
 
 private fun buildSpecs(filter: String, batch: Long, count: Int): List<WallpaperSpec> {
@@ -253,10 +266,13 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
         modifier = Modifier.fillMaxSize(),
     ) {
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
-            HeroHeader(onShuffle = {
-                state.batch = System.currentTimeMillis()
-                state.pages = 1
-            })
+            Column {
+                HeroHeader(onShuffle = {
+                    state.batch = System.currentTimeMillis()
+                    state.pages = 1
+                })
+                UpdateBanner(state.update, onDismiss = { state.update = null })
+            }
         }
         if (showFeatured) {
             item(key = "featured", span = { GridItemSpan(maxLineSpan) }) {
@@ -317,6 +333,59 @@ private fun HeroHeader(onShuffle: () -> Unit) {
                 contentDescription = "New batch",
                 modifier = Modifier.graphicsLayer { rotationZ = spin.value },
             )
+        }
+    }
+}
+
+@Composable
+private fun UpdateBanner(update: UpdateInfo?, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    // Keep the last value so the exit animation still has text to show.
+    var shown by remember { mutableStateOf<UpdateInfo?>(null) }
+    if (update != null) shown = update
+    AnimatedVisibility(
+        visible = update != null,
+        enter = expandVertically(Motion.spatial()) + fadeIn(),
+        exit = shrinkVertically(Motion.spatial()) + fadeOut(),
+    ) {
+        val info = shown ?: return@AnimatedVisibility
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(14.dp)),
+                ) {
+                    Icon(Icons.Rounded.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiary)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Version ${info.version} is ready", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "You have ${Updates.installedVersion}. Download, then open the file to update.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Button(onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(info.apkUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    }) { Text("Download") }
+                    TextButton(onClick = onDismiss) { Text("Later") }
+                }
+            }
         }
     }
 }
