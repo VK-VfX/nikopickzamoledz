@@ -4,22 +4,22 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **44 generators in 13 categories**
-  | Category  | Styles |
+- **50 illustrated styles across 13 worlds**, each with its own art direction
+  | World     | Styles |
   |-----------|--------|
-  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Sketch (cute cats: sitting, loaf, sleeping, big faces and box cats, with yarn, fish bones and toy mice), Space Doodles (astronaut pets, banded planets, rockets, satellites), Doodle Bomb (a packed sketchbook page of original monsters, robots, skulls and eyeballs over patterned gaps and tentacle tubes, washed in a colour gradient). 40 comic icons: ghosts, skulls, cats, controllers, guitars, atoms, rainbows, pizza, UFOs… |
-  | Minimal   | Halo, Horizon, Silk |
-  | Geometric | Polygon Tunnel, Dot Matrix, Isometric |
-  | Space     | Starfield, Constellations, Eclipse |
-  | Nature    | Aurora (northern lights), Topographic, Mountains |
-  | Abstract  | Flow Field, Waves, Mandala |
-  | Neon      | Neon Shapes, Circuit, Synthwave |
-  | Audio     | Spectrum, Radial Beat, Oscilloscope |
-  | Mystic    | Flower of Life, Metatron, Moon Phases |
-  | City      | Skyline, Neon Rain, Night Highway |
-  | Glitch    | Glitch, Data Rain, Pixel Drip |
-  | Pixel     | Pixel Space, Pixel Hearts, Pixel Peaks |
-  | Light     | Bokeh, Fireflies, Light Trails |
+  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Sketch (cute cats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
+  | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
+  | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
+  | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
+  | Nature    | Aurora, Howling Woods (wolf over misty pines), Mountain Lake (mirrored peaks and a canoe), Night Bloom (monstera, ferns, glowing flowers) |
+  | Abstract  | Starry Swirl (a Van Gogh homage), Liquid Marble, Ink Smoke |
+  | Neon      | Neon Sign on a brick wall, Neon Alley (Tokyo signs and wet streets), Synthwave |
+  | Audio     | Vinyl turntable, Boombox, Studio Mic with an ON AIR sign |
+  | Mystic    | The Moon tarot card, All-Seeing Eye, Crystal Ball, Moon Phases |
+  | City      | Rooftops (water tower, string lights, a cat on the ledge), Skyline, Neon Rain, Night Highway |
+  | Glitch    | Aesthetic (glitched marble bust), Error.exe windows, Data Rain |
+  | Pixel     | Pixel Castle, Pixel Quest (hero, slime, chest, HUD), Pixel Space, Pixel Peaks |
+  | Light     | Lantern Festival, Candlelight, Jellyfish, Fireflies |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.

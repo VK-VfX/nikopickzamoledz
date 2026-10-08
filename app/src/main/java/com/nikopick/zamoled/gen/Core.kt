@@ -280,22 +280,31 @@ object Renderer {
 }
 
 object Styles {
+    /** Styles shown in the app, grouped by world. */
     val all: List<Style> = listOf(
         DoodleScatter, DoodlePattern, DoodleSpotlight, SpaceDoodles, ComicPop, DoodleStickers, Gatti, GattiSketch,
-        Halo, Horizon, Silk,
-        PolygonTunnel, DotMatrix, Isometric,
-        Starfield, Constellations, Eclipse,
-        Aurora, Topographic, Mountains,
-        FlowField, Waves, Mandala,
-        NeonShapes, Circuit, Synthwave,
-        SpectrumBars, CircularSpectrum, Oscilloscope,
-        FlowerOfLife, Metatron, MoonPhases,
-        Skyline, NeonRain, NightHighway,
-        GlitchBlocks, DataRain, PixelDrip,
-        PixelSpace, PixelHearts, PixelLandscape,
-        Bokeh, Fireflies, LightTrails,
+        LoneTree, KoiPond, MoonFisher,
+        CrystalCave, ArtDecoTower, FloatingIsle,
+        AstronautDrift, RingedWorld, BlackHole, Eclipse,
+        Aurora, MoonlitForest, MountainLake, NightBloom,
+        StarrySwirl, LiquidMarble, InkSmoke,
+        NeonSign, NeonAlley, Synthwave,
+        Vinyl, Boombox, StudioMic,
+        TarotMoon, AllSeeingEye, CrystalBall, MoonPhases,
+        Rooftops, Skyline, NeonRain, NightHighway,
+        GlitchBust, ErrorWindows, DataRain,
+        PixelCastle, PixelQuest, PixelSpace, PixelLandscape,
+        LanternFestival, Candles, Jellyfish, Fireflies,
     )
 
-    fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: all[0]
+    /** Retired styles: hidden from browsing but still able to open saved favourites. */
+    private val retired: List<Style> = listOf(
+        Halo, Horizon, Silk, PolygonTunnel, DotMatrix, Isometric, Starfield, Constellations,
+        Topographic, Mountains, FlowField, Waves, Mandala, NeonShapes, Circuit,
+        SpectrumBars, CircularSpectrum, Oscilloscope, FlowerOfLife, Metatron,
+        GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails,
+    )
+
+    fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: retired.firstOrNull { it.id == id } ?: all[0]
     fun of(category: Category): List<Style> = all.filter { it.category == category }
 }
