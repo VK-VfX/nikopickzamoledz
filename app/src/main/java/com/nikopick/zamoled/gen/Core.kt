@@ -72,6 +72,7 @@ enum class Category(val label: String) {
     GLITCH("Glitch"),
     PIXEL("Pixel"),
     LIGHT("Light"),
+    GOTHIC("Gothic"),
 }
 
 data class WallpaperSpec(
@@ -291,7 +292,7 @@ object Styles {
         NeonSign, NeonAlley, Synthwave,
         Vinyl, Boombox, StudioMic,
         TarotMoon, AllSeeingEye, CrystalBall, MoonPhases,
-        Rooftops, Skyline, NeonRain, NightHighway,
+        Rooftops, Skyline, NightHighway,
         GlitchBust, ErrorWindows, DataRain,
         PixelCastle, PixelQuest, PixelSpace, PixelLandscape,
         LanternFestival, Candles, Jellyfish, Fireflies,
@@ -302,9 +303,13 @@ object Styles {
         Halo, Horizon, Silk, PolygonTunnel, DotMatrix, Isometric, Starfield, Constellations,
         Topographic, Mountains, FlowField, Waves, Mandala, NeonShapes, Circuit,
         SpectrumBars, CircularSpectrum, Oscilloscope, FlowerOfLife, Metatron,
-        GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails,
+        GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails, NeonRain,
+        GothMoonQueen, GothRavenLady, GothWanderer,
     )
 
     fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: retired.firstOrNull { it.id == id } ?: all[0]
     fun of(category: Category): List<Style> = all.filter { it.category == category }
+
+    /** Categories that currently have at least one style to show. */
+    val categories: List<Category> get() = Category.entries.filter { c -> all.any { it.category == c } }
 }

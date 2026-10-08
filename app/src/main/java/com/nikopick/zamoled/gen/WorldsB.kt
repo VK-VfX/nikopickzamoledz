@@ -44,65 +44,66 @@ private fun Scene.pine(x: Float, base: Float, height: Float, fill: Int, edge: In
     canvas.drawPath(p, stroke(edge, 1.4f, edgeAlpha))
 }
 
+/** Howling wolf in profile facing left, in a 100-unit box (y down). Doubled points stay sharp. */
 private val WOLF = floatArrayOf(
-    0.95f, 0.35f, 0.85f, 0.18f, 0.6f, 0.04f, 0.35f, 0f, 0.2f, -0.06f, 0.1f, -0.35f, 0.07f, -0.58f,
-    0.12f, -0.76f, 0.03f, -0.7f, -0.05f, -0.7f, -0.2f, -0.97f, -0.27f, -0.95f, -0.22f, -0.84f,
-    -0.13f, -0.76f, -0.1f, -0.52f, -0.12f, -0.2f, -0.13f, 0.4f, -0.2f, 0.46f, -0.04f, 0.46f,
-    0.01f, 0.12f, 0.25f, 0.16f, 0.44f, 0.16f, 0.4f, 0.46f, 0.53f, 0.46f, 0.6f, 0.22f, 0.76f, 0.26f, 0.9f, 0.44f,
+    9f, 7f, 9f, 7f, 15f, 3f, 22f, 8f, 26f, 5f, 28f, -5f, 28f, -5f, 33f, 6f, 38f, 12f, 46f, 26f, 58f, 40f, 72f, 44f, 90f, 44f,
+    102f, 48f, 112f, 58f, 121f, 76f, 125f, 93f, 125f, 93f, 116f, 84f, 108f, 70f, 104f, 66f, 108f, 82f, 106f, 96f, 111f, 100f, 111f, 100f,
+    92f, 100f, 92f, 100f, 94f, 92f, 92f, 80f, 84f, 70f, 62f, 72f, 56f, 82f, 56f, 100f, 56f, 100f, 42f, 100f, 42f, 100f, 44f, 86f,
+    42f, 70f, 38f, 52f, 32f, 40f, 24f, 30f, 18f, 22f, 13f, 15f,
 )
 
 object MoonlitForest : Style("moonlit_forest", "Howling Woods", Category.NATURE) {
     override val autoPalettes = listOf("ocean", "aurora", "cyan", "violet", "mono")
 
     override fun draw(s: Scene) {
-        s.starSky(200, s.h * 0.55f)
+        s.starSky(220, s.h * 0.5f)
         val moon = lighten(s.color(0), 0.6f)
-        val mx = s.w * s.f(0.3f, 0.7f)
-        val my = s.h * s.f(0.18f, 0.26f)
-        s.softGlow(mx, my, 420f, s.color(0), 90)
-        s.canvas.drawCircle(mx, my, 110f, s.fill(moon))
-        repeat(6) { s.canvas.drawCircle(mx + s.f(-70f, 70f), my + s.f(-70f, 70f), s.f(8f, 20f), s.fill(darken(moon, 0.1f))) }
+        val mx = s.w * s.f(0.4f, 0.6f)
+        val my = s.h * s.f(0.36f, 0.4f)
+        val mr = s.f(180f, 210f)
+        s.softGlow(mx, my, mr * 3.2f, s.color(0), 100)
+        s.canvas.drawCircle(mx, my, mr, s.fill(moon))
+        repeat(7) { s.canvas.drawCircle(mx + s.f(-mr * 0.6f, mr * 0.6f), my + s.f(-mr * 0.6f, mr * 0.6f), s.f(8f, 24f), s.fill(darken(moon, 0.1f))) }
 
         // Forest layers from far to near, with mist between them.
         for (layer in 0 until 4) {
             val t = layer / 3f
-            val base = s.h * (0.55f + layer * 0.1f)
-            val fill = mix(darken(s.color(1), 0.82f), Color.BLACK, t)
-            val edgeAlpha = (200 * (1f - t * 0.6f)).toInt()
+            val base = s.h * (0.56f + layer * 0.07f)
+            val fill = mix(darken(s.color(1), 0.85f), Color.BLACK, t)
+            val edgeAlpha = (190 * (1f - t * 0.55f)).toInt()
             var x = -40f
             while (x < s.w + 40f) {
-                val hgt = s.f(160f, 320f) * (1f + layer * 0.25f)
-                s.pine(x, base + s.f(-20f, 20f), hgt, fill, s.color(0), edgeAlpha)
-                x += s.f(30f, 70f) * (1f + layer * 0.3f)
+                val hgt = s.f(150f, 300f) * (1f + layer * 0.3f)
+                s.pine(x, base + s.f(-14f, 14f), hgt, fill, s.color(0), edgeAlpha)
+                x += s.f(34f, 70f) * (1f + layer * 0.3f)
             }
-            s.canvas.drawRect(0f, base - 60f, s.w, base + 40f, s.vGradient(base - 60f, base + 40f, Color.TRANSPARENT, withAlpha(s.color(0), 28)))
+            s.canvas.drawRect(0f, base - 70f, s.w, base + 40f, s.vGradient(base - 70f, base + 40f, Color.TRANSPARENT, withAlpha(s.color(0), 30)))
         }
 
-        // Rock with a howling wolf.
-        val rx = s.w * s.f(0.55f, 0.75f)
-        val ry = s.h * 0.86f
+        // Rock crowned by a howling wolf whose head reaches into the moon.
+        val rx = mx + s.f(-50f, 50f)
+        val peak = my + mr * 1.02f
         val rock = Path()
-        rock.moveTo(rx - 260f, s.h + 10f)
-        rock.lineTo(rx - 200f, ry + 20f); rock.lineTo(rx - 90f, ry - 30f); rock.lineTo(rx + 40f, ry - 40f)
-        rock.lineTo(rx + 160f, ry + 10f); rock.lineTo(rx + 300f, s.h + 10f); rock.close()
+        rock.moveTo(rx - 420f, s.h + 10f)
+        rock.lineTo(rx - 300f, peak + 360f); rock.lineTo(rx - 170f, peak + 140f); rock.lineTo(rx - 90f, peak + 14f)
+        rock.lineTo(rx - 30f, peak); rock.lineTo(rx + 120f, peak + 10f); rock.lineTo(rx + 200f, peak + 170f)
+        rock.lineTo(rx + 300f, peak + 380f); rock.lineTo(rx + 420f, s.h + 10f); rock.close()
         s.canvas.drawPath(rock, s.fill(Color.BLACK))
-        s.canvas.drawPath(rock, s.stroke(moon, 2f, 200))
-        val wolf = Path()
-        val size = 170f
-        val wx = rx - 40f
-        val wy = ry - 40f - size * 0.46f
-        for (i in WOLF.indices step 2) {
-            val px = wx + WOLF[i] * size
-            val py = wy + WOLF[i + 1] * size
-            if (i == 0) wolf.moveTo(px, py) else wolf.lineTo(px, py)
-        }
-        wolf.close()
+        s.canvas.drawPath(rock, s.stroke(lighten(s.color(0), 0.3f), 2f, 150))
+
+        val size = 330f
+        val scale = size / 100f
+        val ox = rx - 30f - 12f * scale
+        val oy = peak - 100f * scale
+        val pts = FloatArray(WOLF.size)
+        for (i in WOLF.indices step 2) { pts[i] = ox + WOLF[i] * scale; pts[i + 1] = oy + WOLF[i + 1] * scale }
+        val wolf = smoothPath(pts, closed = true, tension = 0.5f)
         s.canvas.drawPath(wolf, s.fill(Color.BLACK))
-        s.canvas.drawPath(wolf, s.stroke(moon, 2.4f))
-        // Howl rings.
-        for (k in 1..3) {
-            s.canvas.drawArc(RectF(wx - 0.24f * size - k * 26f, wy - 0.96f * size - k * 26f, wx - 0.24f * size + k * 26f, wy - 0.96f * size + k * 26f), 200f, 80f, false, s.stroke(moon, 2f, 200 - k * 50))
-        }
+        s.canvas.drawPath(wolf, s.stroke(lighten(s.color(0), 0.2f), 1.8f, 120))
+        // Breath rings drifting from the muzzle.
+        val nx = ox + 9f * scale
+        val ny = oy + 7f * scale
+        for (k in 1..3) s.canvas.drawArc(RectF(nx - k * 30f - 30f, ny - k * 30f - 30f, nx - k * 30f + 30f, ny - k * 30f + 30f), 150f, 100f, false, s.stroke(Color.BLACK, 2.4f, 190 - k * 40))
     }
 }
 
@@ -197,25 +198,32 @@ object NightBloom : Style("night_bloom", "Night Bloom", Category.NATURE) {
     private fun monstera(s: Scene, x: Float, y: Float, size: Float, rot: Float, edge: Int) {
         s.canvas.save()
         s.canvas.rotate(rot, x, y)
-        val leaf = Path()
-        leaf.moveTo(x, y)
-        leaf.cubicTo(x + size * 0.2f, y - size * 0.7f, x + size * 1.1f, y - size * 0.75f, x + size * 1.15f, y)
-        leaf.cubicTo(x + size * 1.1f, y + size * 0.75f, x + size * 0.2f, y + size * 0.7f, x, y)
-        leaf.close()
-        s.canvas.drawPath(leaf, s.fill(darken(edge, 0.82f)))
-        s.canvas.drawPath(leaf, s.stroke(edge, 2.4f, 220))
-        s.canvas.drawLine(x, y, x + size * 1.1f, y, s.stroke(edge, 2f, 200))
-        // Splits from the edge toward the midrib, and veins between them.
-        for (k in 1..5) {
-            val t = k / 6f
+        // Heart-shaped blade pointing along +x from the stem at (x, y).
+        val blade = Path()
+        blade.moveTo(x, y)
+        blade.cubicTo(x + size * 0.05f, y - size * 0.55f, x + size * 0.55f, y - size * 0.75f, x + size * 0.85f, y - size * 0.3f)
+        blade.cubicTo(x + size * 1.0f, y - size * 0.12f, x + size * 1.1f, y - size * 0.03f, x + size * 1.2f, y)
+        blade.cubicTo(x + size * 1.1f, y + size * 0.03f, x + size * 1.0f, y + size * 0.12f, x + size * 0.85f, y + size * 0.3f)
+        blade.cubicTo(x + size * 0.55f, y + size * 0.75f, x + size * 0.05f, y + size * 0.55f, x, y)
+        blade.close()
+        s.canvas.drawPath(blade, s.fill(darken(edge, 0.8f)))
+        s.canvas.drawPath(blade, s.stroke(edge, 2.6f, 230))
+        // Splits: black wedges from the margin toward the midrib.
+        for (k in 0 until 4) {
+            val t = 0.22f + k * 0.17f
             for (sgn in floatArrayOf(-1f, 1f)) {
-                val mx = x + size * (0.1f + t)
-                val ex = x + size * (0.2f + t * 0.95f)
-                val ey = y + sgn * size * 0.62f * sin(PI.toFloat() * (0.15f + t * 0.8f))
-                s.canvas.drawLine(mx + size * 0.12f, y + sgn * size * 0.12f, ex, ey, s.stroke(Color.BLACK, size * 0.035f))
-                s.canvas.drawLine(mx, y, ex - size * 0.08f, ey * 0.98f + y * 0.02f, s.stroke(edge, 1.2f, 120))
+                val ex = x + size * (t + 0.12f)
+                val ey = y + sgn * size * (0.62f - k * 0.1f)
+                val wedge = Path()
+                wedge.moveTo(ex - size * 0.03f, ey)
+                wedge.lineTo(x + size * (t + 0.02f), y + sgn * size * 0.1f)
+                wedge.lineTo(ex + size * 0.05f, ey - sgn * size * 0.02f)
+                wedge.close()
+                s.canvas.drawPath(wedge, s.fill(Color.BLACK))
+                s.canvas.drawPath(wedge, s.stroke(edge, 1.4f, 160))
             }
         }
+        s.canvas.drawLine(x, y, x + size * 1.15f, y, s.stroke(edge, 3f, 230))
         s.canvas.restore()
     }
 
@@ -370,7 +378,7 @@ object LiquidMarble : Style("liquid_marble", "Liquid Marble", Category.ABSTRACT)
         val step = 7f
         val nx = (s.w / step).toInt() + 2
         val ny = (s.h / step).toInt() + 2
-        val sc = s.f(0.0016f, 0.0028f)
+        val sc = s.f(0.0012f, 0.002f)
         val warp = s.f(2.5f, 4.5f)
         val v = Array(ny) { j ->
             FloatArray(nx) { i ->
@@ -381,7 +389,7 @@ object LiquidMarble : Style("liquid_marble", "Liquid Marble", Category.ABSTRACT)
                 s.noise.fbm(x + warp * qx, y + warp * qy, 3)
             }
         }
-        val levels = 34
+        val levels = 18
         val gold = Color.rgb(255, 214, 120)
         for (l in 0 until levels) {
             val level = -0.6f + 1.2f * l / (levels - 1f)
@@ -413,11 +421,11 @@ object LiquidMarble : Style("liquid_marble", "Liquid Marble", Category.ABSTRACT)
                 }
             }
             val arr = segs.toFloatArray()
-            if (l % 7 == 3) {
+            if (l % 5 == 2) {
                 s.canvas.drawLines(arr, s.stroke(gold, 4f, 90, 6f))
                 s.canvas.drawLines(arr, s.stroke(gold, 1.8f))
             } else {
-                s.canvas.drawLines(arr, s.stroke(s.grad((l % 11) / 10f), if (l % 2 == 0) 2.6f else 1.2f, 200))
+                s.canvas.drawLines(arr, s.stroke(s.grad((l % 7) / 6f), if (l % 2 == 0) 3.2f else 1.4f, 215))
             }
         }
     }
@@ -427,27 +435,29 @@ object InkSmoke : Style("ink_smoke", "Ink Smoke", Category.ABSTRACT) {
     override val autoPalettes = listOf("hue", "graffiti", "violet", "sunset", "aurora", "cyan")
 
     override fun draw(s: Scene) {
-        val plumes = s.i(2, 5)
+        val plumes = s.i(2, 4)
         for (pl in 0 until plumes) {
-            val sx = s.f(s.w * 0.15f, s.w * 0.85f)
-            val sy = s.h * s.f(0.75f, 1.0f)
+            val sx = s.f(s.w * 0.2f, s.w * 0.8f)
+            val sy = s.h * s.f(0.88f, 1.02f)
             val color = s.color(pl)
             val off = s.f(0f, 100f)
-            repeat(s.count(170)) {
-                var x = sx + s.gauss() * 30f
-                var y = sy + s.gauss() * 20f
+            s.softGlow(sx, sy, 260f, color, 80)
+            repeat(s.count(520)) {
+                var x = sx + s.gauss() * 55f
+                var y = sy + s.gauss() * 10f
                 val p = Path()
                 p.moveTo(x, y)
-                repeat(160) {
-                    val n = s.noise.fbm(x * 0.0035f + off, y * 0.0035f, 3)
-                    val a = -PI.toFloat() / 2f + n * 2.6f
-                    x += cos(a) * 4f
-                    y += sin(a) * 4f
+                val drift = s.f(-0.6f, 0.6f)
+                for (k in 0 until 240) {
+                    val rise = k / 240f
+                    val n = s.noise.fbm(x * 0.0042f + off, y * 0.0042f + off * 0.5f, 3)
+                    val a = -PI.toFloat() / 2f + n * 3.4f * (0.35f + rise) + drift * rise
+                    x += cos(a) * 5f
+                    y += sin(a) * 5f
                     p.lineTo(x, y)
                 }
-                s.canvas.drawPath(p, s.stroke(color, s.f(0.8f, 2f), s.i(10, 30)).apply { blendMode = BlendMode.PLUS })
+                s.canvas.drawPath(p, s.stroke(mix(color, Color.WHITE, s.f(0f, 0.35f)), s.f(0.8f, 1.9f), s.i(14, 36)).apply { blendMode = BlendMode.PLUS })
             }
-            s.softGlow(sx, sy, 160f, color, 60)
         }
     }
 }

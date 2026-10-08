@@ -491,7 +491,7 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
 @Composable
 private fun FilterRow(selected: String, onSelect: (String) -> Unit) {
     val filters = listOf(Triple(FILTER_ALL, "All", Icons.Rounded.GridView)) +
-        Category.entries.map { Triple(it.name, it.label, it.icon) }
+        Styles.categories.map { Triple(it.name, it.label, it.icon) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
         SectionTitle("Browse")
         LazyRow(
@@ -599,13 +599,13 @@ private fun CategoriesTab(state: HomeState, onPick: (Category) -> Unit) {
             Column(Modifier.padding(start = 4.dp, bottom = 8.dp)) {
                 Text("Categories", style = MaterialTheme.typography.headlineLarge)
                 Text(
-                    "${Category.entries.size} worlds, ${Styles.all.size} generators. Tap one to browse it.",
+                    "${Styles.categories.size} worlds, ${Styles.all.size} wallpapers. Tap one to browse it.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        itemsIndexed(Category.entries, key = { _, c -> c.name }) { i, category ->
+        itemsIndexed(Styles.categories, key = { _, c -> c.name }) { i, category ->
             CategoryCard(category, i) { onPick(category) }
         }
     }

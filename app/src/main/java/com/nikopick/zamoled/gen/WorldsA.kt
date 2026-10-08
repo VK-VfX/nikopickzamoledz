@@ -190,7 +190,7 @@ object KoiPond : Style("koi_pond", "Koi Pond", Category.MINIMAL) {
             val a = a0 + span * t
             val px = cx + cos(a) * r
             val py = cy + sin(a) * r
-            val wd = maxW * sin(PI.toFloat() * t).pow(0.7f) * (0.25f + 0.75f * t)
+            val wd = maxW * sin(PI.toFloat() * t).coerceAtLeast(0f).pow(0.7f) * (0.25f + 0.75f * t)
             spine.add(floatArrayOf(px, py, a))
             left.add(floatArrayOf(px + cos(a) * wd, py + sin(a) * wd))
             right.add(floatArrayOf(px - cos(a) * wd, py - sin(a) * wd))
@@ -471,7 +471,7 @@ object FloatingIsle : Style("floating_isle", "Floating Isle", Category.GEOMETRIC
         val tip = floatArrayOf(cx + s.f(-30f, 30f), cy + n * u * 1.9f)
         val cone = Path()
         cone.moveTo(bl[0], bl[1]); cone.lineTo(fr[0], fr[1]); cone.lineTo(br[0], br[1]); cone.lineTo(tip[0], tip[1]); cone.close()
-        s.canvas.drawPath(cone, s.vGradient(fr[1], tip[1], darken(earth, 0.5f), Color.BLACK))
+        s.canvas.drawPath(cone, s.vGradient(fr[1], tip[1], darken(earth, 0.3f), darken(earth, 0.75f)))
         s.canvas.drawPath(cone, s.stroke(darken(earth, 0.1f), 2f))
         repeat(10) {
             val rx = s.f(bl[0], br[0])

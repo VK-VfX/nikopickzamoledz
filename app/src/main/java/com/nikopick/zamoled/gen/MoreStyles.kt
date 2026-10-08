@@ -148,11 +148,11 @@ object MoonPhases : Style("moon_phases", "Moon Phases", Category.MYSTIC) {
         val arcR = s.f(560f, 700f)
         val acx = s.cx
         val acy = s.h * s.f(0.45f, 0.55f) + arcR * 0.75f
-        val span = 70f
+        val span = 86f
         val orbit = Path()
         orbit.addArc(acx - arcR, acy - arcR, acx + arcR, acy + arcR, -90f - span / 2f - 8f, span + 16f)
         s.canvas.drawPath(orbit, s.stroke(s.color(1), 1.2f, 70))
-        val moonR = 34f
+        val moonR = 52f
         for (k in 0 until n) {
             val deg = -90f - span / 2f + span * k / (n - 1f)
             val a = Math.toRadians(deg.toDouble()).toFloat()
@@ -511,10 +511,10 @@ object PixelLandscape : Style("pixel_landscape", "Pixel Peaks", Category.PIXEL) 
             var x = 0f
             val color = s.grad(layer / 2f)
             while (x < s.w) {
-                val n = 1f - abs(s.noise.fbm(x * 0.003f * (1 + layer * 0.5f), layer * 7f + 2f))
-                val top = (((base - n * amp) / px).toInt() * px)
-                s.canvas.drawRect(x, top, x + px, s.h, s.fill(Color.BLACK))
-                s.canvas.drawRect(x, top, x + px - 1f, top + px - 1f, s.fill(color, 120 + layer * 60))
+                val n = (s.noise.fbm(x * 0.004f * (1 + layer * 0.5f), layer * 7f + 2f) + 0.55f).coerceIn(0f, 1.2f)
+                val top = (((base - n * amp * 1.5f) / px).toInt() * px)
+                s.canvas.drawRect(x, top, x + px, s.h, s.fill(darken(color, 0.78f)))
+                s.canvas.drawRect(x, top, x + px - 1f, top + px - 1f, s.fill(color, 160 + layer * 40))
                 if (prev >= 0f && abs(prev - top) > px) {
                     val from = minOf(prev, top)
                     val to = maxOf(prev, top)

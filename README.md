@@ -71,3 +71,7 @@ Requires Android 10 (API 29) or newer.
 `gen/Core.kt` holds the engine. Each style draws on a virtual canvas that is 1000 units wide, which is scaled to the target bitmap. Because of that, the same seed gives the same picture as a 360 px thumbnail and as a 4K export. Randomness comes from `kotlin.random.Random(seed)` plus a seeded Perlin noise. A wallpaper is fully described by `style | seed | palette | detail`, and favourites are stored as that string.
 
 To add a new style, subclass `Style`, draw with the `Scene` helpers (`stroke`, `glowPath`, `glowDot`, `grad`, `noise`…), and register it in `Styles.all`.
+
+## Previewing the art on a computer
+
+`tools/preview` renders the generators to PNGs without a phone. See `tools/preview/README.md`.

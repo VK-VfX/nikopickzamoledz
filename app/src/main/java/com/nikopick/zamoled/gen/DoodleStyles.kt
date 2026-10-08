@@ -27,7 +27,10 @@ class Pen(
     private val darkInk: Boolean = false,
 ) {
     val c: Canvas get() = s.canvas
-    private val linePaint = s.stroke(ink, width, alpha, glow)
+    private val linePaint = s.stroke(ink, width, alpha)
+
+    /** Soft halo drawn under the sharp line; blur radii follow the canvas scale. */
+    private val glowPaint: Paint? = if (glow > 0f) s.stroke(ink, width * 2.6f, alpha * 3 / 5, glow) else null
     private val inkPaint = s.fill(ink, alpha)
     private val darkPaint = s.fill(Color.BLACK)
     private val fillPaints: List<Paint>? = fills?.map { s.fill(it, alpha) }
@@ -40,30 +43,39 @@ class Pen(
 
     fun path(p: Path, fill: Int = -1) {
         fp(fill)?.let { c.drawPath(p, it) }
+        glowPaint?.let { c.drawPath(p, it) }
         c.drawPath(p, linePaint)
     }
 
     fun circle(x: Float, y: Float, r: Float, fill: Int = -1) {
         fp(fill)?.let { c.drawCircle(x, y, r, it) }
+        glowPaint?.let { c.drawCircle(x, y, r, it) }
         c.drawCircle(x, y, r, linePaint)
     }
 
     fun oval(l: Float, t: Float, r: Float, b: Float, fill: Int = -1) {
         val rect = RectF(l, t, r, b)
         fp(fill)?.let { c.drawOval(rect, it) }
+        glowPaint?.let { c.drawOval(rect, it) }
         c.drawOval(rect, linePaint)
     }
 
     fun rrect(l: Float, t: Float, r: Float, b: Float, rad: Float, fill: Int = -1) {
         val rect = RectF(l, t, r, b)
         fp(fill)?.let { c.drawRoundRect(rect, rad, rad, it) }
+        glowPaint?.let { c.drawRoundRect(rect, rad, rad, it) }
         c.drawRoundRect(rect, rad, rad, linePaint)
     }
 
-    fun line(x1: Float, y1: Float, x2: Float, y2: Float) = c.drawLine(x1, y1, x2, y2, linePaint)
+    fun line(x1: Float, y1: Float, x2: Float, y2: Float) {
+        glowPaint?.let { c.drawLine(x1, y1, x2, y2, it) }
+        c.drawLine(x1, y1, x2, y2, linePaint)
+    }
 
-    fun arc(l: Float, t: Float, r: Float, b: Float, start: Float, sweep: Float) =
+    fun arc(l: Float, t: Float, r: Float, b: Float, start: Float, sweep: Float) {
+        glowPaint?.let { c.drawArc(RectF(l, t, r, b), start, sweep, false, it) }
         c.drawArc(RectF(l, t, r, b), start, sweep, false, linePaint)
+    }
 
     fun poly(vararg pts: Float, fill: Int = -1, close: Boolean = true) {
         val p = Path()

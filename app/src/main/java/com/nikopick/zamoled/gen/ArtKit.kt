@@ -112,3 +112,36 @@ fun Scene.limb(path: Path, fill: Int, outline: Int, width: Float, outlineWidth: 
     canvas.drawPath(path, stroke(outline, width + outlineWidth * 2f))
     canvas.drawPath(path, stroke(fill, width))
 }
+
+/**
+ * Smooth curve through [pts] (x,y pairs) using Catmull-Rom splines converted to cubics.
+ * Repeat a point twice to keep a sharp corner there.
+ */
+fun smoothPath(pts: FloatArray, closed: Boolean = true, tension: Float = 0.5f, path: Path = Path(), startNew: Boolean = true): Path {
+    val n = pts.size / 2
+    if (n < 2) return path
+    fun px(i: Int) = pts[((i % n) + n) % n * 2]
+    fun py(i: Int) = pts[((i % n) + n) % n * 2 + 1]
+    if (startNew) path.moveTo(px(0), py(0)) else path.lineTo(px(0), py(0))
+    val last = if (closed) n else n - 1
+    for (i in 0 until last) {
+        val i0 = if (closed || i > 0) i - 1 else 0
+        val i3 = if (closed || i + 2 < n) i + 2 else n - 1
+        val c1x = px(i) + (px(i + 1) - px(i0)) * tension / 3f * 2f / 2f * 1f
+        val c1y = py(i) + (py(i + 1) - py(i0)) * tension / 3f * 2f / 2f * 1f
+        val c2x = px(i + 1) - (px(i3) - px(i)) * tension / 3f * 2f / 2f * 1f
+        val c2y = py(i + 1) - (py(i3) - py(i)) * tension / 3f * 2f / 2f * 1f
+        path.cubicTo(c1x, c1y, c2x, c2y, px(i + 1), py(i + 1))
+    }
+    if (closed) path.close()
+    return path
+}
+
+/** Same as [smoothPath] but takes a mirrored half outline: points on the right side top→bottom, mirrored for the left. */
+fun mirroredOutline(half: FloatArray, cx: Float): FloatArray {
+    val n = half.size / 2
+    val out = FloatArray(n * 4)
+    for (i in 0 until n) { out[i * 2] = cx + half[i * 2]; out[i * 2 + 1] = half[i * 2 + 1] }
+    for (i in 0 until n) { val j = n - 1 - i; out[(n + i) * 2] = cx - half[j * 2]; out[(n + i) * 2 + 1] = half[j * 2 + 1] }
+    return out
+}
