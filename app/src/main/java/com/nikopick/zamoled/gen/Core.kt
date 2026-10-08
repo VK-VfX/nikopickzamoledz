@@ -281,7 +281,7 @@ object Renderer {
 
 object Styles {
     val all: List<Style> = listOf(
-        DoodleScatter, DoodlePattern, DoodleSpotlight, SpaceDoodles, ComicPop, DoodleStickers,
+        DoodleScatter, DoodlePattern, DoodleSpotlight, SpaceDoodles, ComicPop, DoodleStickers, Gatti, GattiSketch,
         Halo, Horizon, Silk,
         PolygonTunnel, DotMatrix, Isometric,
         Starfield, Constellations, Eclipse,

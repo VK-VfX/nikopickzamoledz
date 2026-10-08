@@ -4,10 +4,10 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **42 generators in 13 categories**
+- **44 generators in 13 categories**
   | Category  | Styles |
   |-----------|--------|
-  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Space Doodles (astronaut pets, banded planets, rockets, satellites), Doodle Bomb (a packed sketchbook page of original monsters, robots, skulls and eyeballs over patterned gaps and tentacle tubes, washed in a colour gradient). 40 comic icons: ghosts, skulls, cats, controllers, guitars, atoms, rainbows, pizza, UFOs… |
+  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Sketch (cute cats: sitting, loaf, sleeping, big faces and box cats, with yarn, fish bones and toy mice), Space Doodles (astronaut pets, banded planets, rockets, satellites), Doodle Bomb (a packed sketchbook page of original monsters, robots, skulls and eyeballs over patterned gaps and tentacle tubes, washed in a colour gradient). 40 comic icons: ghosts, skulls, cats, controllers, guitars, atoms, rainbows, pizza, UFOs… |
   | Minimal   | Halo, Horizon, Silk |
   | Geometric | Polygon Tunnel, Dot Matrix, Isometric |
   | Space     | Starfield, Constellations, Eclipse |
