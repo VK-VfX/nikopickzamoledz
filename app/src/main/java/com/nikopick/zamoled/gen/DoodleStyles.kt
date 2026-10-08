@@ -599,16 +599,11 @@ private fun Scene.filler(x: Float, y: Float, color: Int, width: Float, alpha: In
 /** Loose scatter of line-art doodles in the palette colours. */
 object DoodleScatter : Style("doodle_scatter", "Doodle Scatter", Category.DOODLE) {
     override fun draw(s: Scene) {
-        val cell = 150f / sqrt(s.density)
-        val cols = (s.w / cell).toInt() + 1
-        val rows = (s.h / cell).toInt() + 1
-        for (gy in 0..rows) for (gx in 0..cols) {
-            val x = gx * cell + s.f(0.2f, 0.8f) * cell
-            val y = gy * cell + s.f(0.2f, 0.8f) * cell
+        for (p in s.spots(s.layout, 150f)) {
             if (s.chance(0.78f)) {
-                Doodles.draw(s, s.i(0, Doodles.count), x, y, s.f(24f, 42f), s.f(-30f, 30f), s.anyColor(), 3f)
+                Doodles.draw(s, s.i(0, Doodles.count), p.x, p.y, s.f(24f, 42f) * p.scale, p.rot, s.anyColor(), 3f * p.scale.coerceAtMost(1.6f))
             } else {
-                s.filler(x, y, s.anyColor(), 2.4f, 200)
+                s.filler(p.x, p.y, s.anyColor(), 2.4f, 200)
             }
         }
     }
@@ -619,19 +614,15 @@ object DoodlePattern : Style("doodle_pattern", "Doodle Wall", Category.DOODLE) {
     override val autoPalettes = listOf("hue", "hue", "aurora", "ocean", "violet", "sunset", "cyan")
 
     override fun draw(s: Scene) {
-        val cell = 92f / sqrt(s.density)
-        val cols = (s.w / cell).toInt() + 1
-        val rows = (s.h / cell).toInt() + 1
         val diagonal = s.chance(0.5f)
-        for (gy in 0..rows) for (gx in 0..cols) {
-            val x = gx * cell + s.f(0.25f, 0.75f) * cell
-            val y = gy * cell + s.f(0.25f, 0.75f) * cell
-            val t = if (diagonal) (x / s.w + (1f - y / s.h)) / 2f else (x / s.w + y / s.h) / 2f
+        val cell = 92f / sqrt(s.density)
+        for (p in s.spots(s.layout, 92f)) {
+            val t = if (diagonal) (p.x / s.w + (1f - p.y / s.h)) / 2f else p.t
             val color = s.grad(t)
             if (s.chance(0.82f)) {
-                Doodles.draw(s, s.i(0, Doodles.count), x, y, s.f(20f, 30f), s.f(-25f, 25f), color, 2.3f, alpha = 235)
+                Doodles.draw(s, s.i(0, Doodles.count), p.x, p.y, s.f(20f, 30f) * p.scale, p.rot, color, 2.3f, alpha = 235)
             }
-            repeat(2) { s.filler(x + s.f(-cell / 2f, cell / 2f), y + s.f(-cell / 2f, cell / 2f), color, 1.8f, 190) }
+            repeat(2) { s.filler(p.x + s.f(-cell / 2f, cell / 2f), p.y + s.f(-cell / 2f, cell / 2f), color, 1.8f, 190) }
         }
     }
 }
@@ -641,16 +632,17 @@ object DoodleSpotlight : Style("doodle_spotlight", "Doodle Spotlight", Category.
     override fun draw(s: Scene) {
         val x = s.cx
         val y = s.h * s.f(0.38f, 0.5f)
-        Doodles.draw(s, s.i(0, Doodles.count), x, y, s.f(170f, 220f), s.f(-12f, 12f), s.color(0), 6f, glow = 16f)
-
         val orbit = s.f(300f, 360f)
+        // Satellites follow the chosen arrangement, but never cover the hero doodle.
+        for (p in s.spots(s.layout, 150f)) {
+            val dx = p.x - x
+            val dy = p.y - y
+            if (dx * dx + dy * dy < (orbit - 60f) * (orbit - 60f)) continue
+            Doodles.draw(s, s.i(0, Doodles.count), p.x, p.y, s.f(12f, 24f) * p.scale, p.rot, s.anyColor(), 2.4f, alpha = 210)
+        }
         val dash = s.stroke(s.color(1), 2f, 70).apply { pathEffect = DashPathEffect(floatArrayOf(6f, 14f), 0f) }
         s.canvas.drawCircle(x, y, orbit, dash)
-        repeat(s.count(14)) {
-            val a = s.f(0f, TAU)
-            val d = s.f(orbit - 40f, orbit + 280f)
-            Doodles.draw(s, s.i(0, Doodles.count), x + cos(a) * d, y + sin(a) * d, s.f(12f, 24f), s.f(-30f, 30f), s.anyColor(), 2.4f, alpha = 210)
-        }
+        Doodles.draw(s, s.i(0, Doodles.count), x, y, s.f(170f, 220f), s.f(-12f, 12f), s.color(0), 6f, glow = 16f)
     }
 }
 
@@ -659,20 +651,16 @@ object DoodleStickers : Style("doodle_stickers", "Doodle Stickers", Category.DOO
     override val autoPalettes = listOf("candy", "candy", "sakura", "sunset", "ocean", "aurora")
 
     override fun draw(s: Scene) {
-        val cell = 175f / sqrt(s.density)
-        val cols = (s.w / cell).toInt() + 1
-        val rows = (s.h / cell).toInt() + 1
         val fills = s.palette.colors
-        for (gy in 0..rows) for (gx in 0..cols) {
-            val x = gx * cell + s.f(0.2f, 0.8f) * cell
-            val y = gy * cell + s.f(0.2f, 0.8f) * cell
+        val cell = 175f / sqrt(s.density)
+        for (p in s.spots(s.layout, 175f)) {
             if (s.chance(0.8f)) {
                 // Rotate the fill order so neighbours differ.
                 val shift = s.i(0, fills.size)
                 val rotated = IntArray(fills.size) { fills[(it + shift) % fills.size] }
-                Doodles.draw(s, s.i(0, Doodles.count), x, y, s.f(34f, 52f), s.f(-25f, 25f), Color.WHITE, 3.2f, rotated)
+                Doodles.draw(s, s.i(0, Doodles.count), p.x, p.y, s.f(34f, 52f) * p.scale, p.rot, Color.WHITE, 3.2f, rotated)
             }
-            repeat(2) { s.filler(x + s.f(-cell / 2f, cell / 2f), y + s.f(-cell / 2f, cell / 2f), Color.WHITE, 2f, 200) }
+            repeat(2) { s.filler(p.x + s.f(-cell / 2f, cell / 2f), p.y + s.f(-cell / 2f, cell / 2f), Color.WHITE, 2f, 200) }
         }
     }
 }
@@ -693,22 +681,21 @@ object SpaceDoodles : Style("space_doodles", "Space Doodles", Category.DOODLE) {
         repeat(s.count(26)) { motionLines(s, s.f(0f, s.w), s.f(0f, s.h)) }
 
         val cell = 230f / sqrt(s.density)
-        val cols = (s.w / cell).toInt() + 1
-        val rows = (s.h / cell).toInt() + 1
-        for (gy in 0..rows) for (gx in 0..cols) {
-            val x = gx * cell + s.f(0.2f, 0.8f) * cell
-            val y = gy * cell + s.f(0.2f, 0.8f) * cell
-            val rot = s.f(-25f, 25f)
+        for (p in s.spots(s.layout, 230f)) {
+            val x = p.x
+            val y = p.y
+            val sc = p.scale
+            val rot = p.rot + s.f(-12f, 12f)
             when (s.i(0, 11)) {
-                0, 1 -> bandedPlanet(s, x, y, s.f(42f, 80f), pal)
-                2 -> craterPlanet(s, x, y, s.f(40f, 70f), pal)
-                3 -> ringPlanet(s, x, y, s.f(30f, 48f), pal)
-                4 -> astronaut(s, x, y, s.f(55f, 72f), rot, s.i(0, 3), pal)
-                5 -> Doodles.draw(s, 28, x, y, s.f(40f, 60f), s.f(-50f, 50f), INK, 3.2f, pal) // rocket
-                6 -> Doodles.draw(s, 29, x, y, s.f(42f, 60f), rot, INK, 3.2f, pal) // ufo
-                7 -> satellite(s, x, y, s.f(44f, 60f), rot)
-                8 -> comet(s, x, y, s.f(60f, 110f), s.anyColor())
-                9 -> starburst(s, x, y, s.f(26f, 42f), pal)
+                0, 1 -> bandedPlanet(s, x, y, s.f(42f, 80f) * sc, pal)
+                2 -> craterPlanet(s, x, y, s.f(40f, 70f) * sc, pal)
+                3 -> ringPlanet(s, x, y, s.f(30f, 48f) * sc, pal)
+                4 -> astronaut(s, x, y, s.f(55f, 72f) * sc, rot, s.i(0, 3), pal)
+                5 -> Doodles.draw(s, 28, x, y, s.f(40f, 60f) * sc, p.rot + s.f(-50f, 50f), INK, 3.2f, pal) // rocket
+                6 -> Doodles.draw(s, 29, x, y, s.f(42f, 60f) * sc, rot, INK, 3.2f, pal) // ufo
+                7 -> satellite(s, x, y, s.f(44f, 60f) * sc, rot)
+                8 -> comet(s, x, y, s.f(60f, 110f) * sc, s.anyColor())
+                9 -> starburst(s, x, y, s.f(26f, 42f) * sc, pal)
                 else -> dotCluster(s, x, y, pal)
             }
             if (s.chance(0.6f)) sparkle(s, x + s.f(-cell / 2f, cell / 2f), y + s.f(-cell / 2f, cell / 2f))

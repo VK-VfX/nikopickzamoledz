@@ -37,22 +37,17 @@ private object GattiPage {
     fun draw(s: Scene, filled: Boolean) {
         val pal = s.palette.colors
         val cell = 205f / sqrt(s.density)
-        val cols = (s.w / cell).toInt() + 1
-        val rows = (s.h / cell).toInt() + 1
-        for (gy in 0..rows) for (gx in 0..cols) {
-            val x = gx * cell + s.f(0.25f, 0.75f) * cell
-            val y = gy * cell + s.f(0.25f, 0.75f) * cell
-            val t = (x / s.w + y / s.h) / 2f
-            val ink = if (filled) Color.WHITE else s.grad(t)
+        for (p in s.spots(s.layout, 205f)) {
+            val ink = if (filled) Color.WHITE else s.grad(p.t)
             if (s.chance(0.72f)) {
-                cat(s, x, y, s.f(58f, 78f), s.f(-14f, 14f), filled, ink, pal)
+                cat(s, p.x, p.y, s.f(58f, 78f) * p.scale, p.rot, filled, ink, pal)
             } else {
-                accessory(s, x, y, filled, ink, pal)
+                accessory(s, p.x, p.y, filled, ink, pal)
             }
-            // Little extras around each cell.
+            // Little extras around each cat.
             repeat(2) {
-                val ex = x + s.f(-cell / 2f, cell / 2f)
-                val ey = y + s.f(-cell / 2f, cell / 2f)
+                val ex = p.x + s.f(-cell / 2f, cell / 2f)
+                val ey = p.y + s.f(-cell / 2f, cell / 2f)
                 val c = if (filled) Color.WHITE else s.grad((ex / s.w + ey / s.h) / 2f)
                 when (s.i(0, 4)) {
                     0 -> Doodles.draw(s, 15, ex, ey, s.f(9f, 14f), s.f(-30f, 30f), c, 2f, if (filled) intArrayOf(pal[s.i(0, pal.size)]) else null)

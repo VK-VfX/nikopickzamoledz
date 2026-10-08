@@ -62,6 +62,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilledTonalIconToggleButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -110,6 +112,8 @@ import com.nikopick.zamoled.data.Resolution
 import com.nikopick.zamoled.data.Screen
 import com.nikopick.zamoled.data.WallpaperActions
 import com.nikopick.zamoled.data.WallpaperTarget
+import com.nikopick.zamoled.gen.Category
+import com.nikopick.zamoled.gen.DoodleLayout
 import com.nikopick.zamoled.gen.Palette
 import com.nikopick.zamoled.gen.Palettes
 import com.nikopick.zamoled.gen.Renderer
@@ -281,6 +285,7 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                             onDetail = { detail = it },
                             onDetailDone = { spec = spec.copy(density = (detail * 10).roundToInt() / 10f) },
                             onResolution = { resolution = it },
+                            onLayout = { spec = spec.copy(layoutId = it) },
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -408,6 +413,7 @@ private fun CustomizePanel(
     onDetail: (Float) -> Unit,
     onDetailDone: () -> Unit,
     onResolution: (Resolution) -> Unit,
+    onLayout: (String) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -420,6 +426,26 @@ private fun CustomizePanel(
             }
             items(Palettes.choices, key = { it.id }) { p ->
                 PaletteSwatch(p, selected = spec.paletteId == p.id) { onPalette(p.id) }
+            }
+        }
+        // Arrangement only changes styles that lay doodles out across the page.
+        if (spec.style.category == Category.DOODLE) {
+            SectionLabel("Arrangement")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                items(DoodleLayout.choices, key = { it.id }) { l ->
+                    val selected = spec.layoutId == l.id
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onLayout(l.id) },
+                        label = { Text(l.label) },
+                        leadingIcon = if (l == DoodleLayout.AUTO) {
+                            { Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                        } else {
+                            { LayoutGlyph(l, if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant) }
+                        },
+                        shape = CircleShape,
+                    )
+                }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -532,6 +558,57 @@ private fun TopControls(spec: WallpaperSpec, favorite: Boolean, onBack: () -> Un
             )
         }
     }
+}
+
+/** Dot diagram of an arrangement, used on the picker chips. */
+@Composable
+private fun LayoutGlyph(layout: DoodleLayout, color: Color) {
+    val dots = remember(layout) { layoutDots(layout) }
+    Canvas(Modifier.size(FilterChipDefaults.IconSize)) {
+        val r = size.minDimension * 0.075f
+        dots.forEach { (dx, dy) ->
+            drawCircle(color, radius = r, center = Offset(dx * size.width, dy * size.height))
+        }
+    }
+}
+
+/** Dot positions in 0..1 space for each arrangement's chip glyph. */
+private fun layoutDots(layout: DoodleLayout): List<Pair<Float, Float>> = when (layout) {
+    DoodleLayout.GRID -> listOf(0.25f, 0.5f, 0.75f).flatMap { y -> listOf(0.25f, 0.5f, 0.75f).map { it to y } }
+    DoodleLayout.RINGS -> buildList {
+        add(0.5f to 0.5f)
+        repeat(8) { add((0.5f + 0.33f * kotlin.math.cos(it * 0.785f)) to (0.5f + 0.33f * kotlin.math.sin(it * 0.785f))) }
+    }
+    DoodleLayout.SPIRAL -> (0..9).map {
+        val a = it * 0.9f
+        val rr = 0.045f * it
+        (0.5f + rr * kotlin.math.cos(a)) to (0.5f + rr * kotlin.math.sin(a))
+    }
+    DoodleLayout.WAVE -> (0..4).flatMap { c ->
+        val x = 0.16f + c * 0.17f
+        listOf(0.3f, 0.65f).map { base -> x to (base + 0.12f * kotlin.math.sin(c * 1.4f)) }
+    }
+    DoodleLayout.MOSAIC -> listOf(0.3f to 0.3f, 0.72f to 0.22f, 0.76f to 0.52f, 0.26f to 0.68f, 0.56f to 0.74f, 0.84f to 0.8f)
+    DoodleLayout.BURST -> buildList {
+        add(0.5f to 0.5f)
+        repeat(6) {
+            val a = it * 1.047f
+            add((0.5f + 0.2f * kotlin.math.cos(a)) to (0.5f + 0.2f * kotlin.math.sin(a)))
+            add((0.5f + 0.4f * kotlin.math.cos(a)) to (0.5f + 0.4f * kotlin.math.sin(a)))
+        }
+    }
+    DoodleLayout.DIAGONAL -> (0..3).flatMap { k -> (0..2).map { i -> (0.18f + i * 0.28f + k * 0.07f).coerceAtMost(0.92f) to (0.8f - i * 0.28f + k * 0.03f) } }
+    DoodleLayout.FRAME -> buildList {
+        for (i in 0..3) {
+            add((0.16f + i * 0.23f) to 0.16f); add((0.16f + i * 0.23f) to 0.84f)
+            add(0.16f to (0.16f + i * 0.23f)); add(0.84f to (0.16f + i * 0.23f))
+        }
+    }
+    DoodleLayout.SHAPE -> listOf(
+        0.32f to 0.3f, 0.5f to 0.24f, 0.68f to 0.3f, 0.26f to 0.45f, 0.5f to 0.45f, 0.74f to 0.45f,
+        0.36f to 0.62f, 0.5f to 0.68f, 0.64f to 0.62f, 0.5f to 0.82f,
+    )
+    else -> listOf(0.22f to 0.3f, 0.52f to 0.2f, 0.78f to 0.38f, 0.3f to 0.62f, 0.62f to 0.56f, 0.8f to 0.78f, 0.42f to 0.84f)
 }
 
 @Composable

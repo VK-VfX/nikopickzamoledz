@@ -32,18 +32,22 @@ object ComicPop : Style("comic_pop", "Doodle Bomb", Category.DOODLE) {
         // 2. Tubes and tentacles snake across.
         repeat(s.count(5).coerceIn(2, 10)) { tube(s) }
 
-        // 3. Characters packed tightly on top, biggest first.
+        // 3. Characters packed tightly on top, following the chosen arrangement.
         val placed = ArrayList<FloatArray>()
-        val tiers = floatArrayOf(150f, 115f, 90f, 70f, 52f, 38f)
-        for (r in tiers) {
-            val tries = (if (r > 80f) 70 else 160) * s.density.coerceIn(0.5f, 1.6f)
-            repeat(tries.toInt()) {
-                val x = s.f(-r * 0.3f, s.w + r * 0.3f)
-                val y = s.f(-r * 0.3f, s.h + r * 0.3f)
-                val rr = r * s.f(0.85f, 1.15f)
-                val fits = placed.none { hypot(it[0] - x, it[1] - y) < (it[2] + rr) * 0.78f }
-                if (fits) placed.add(floatArrayOf(x, y, rr))
+        if (s.layout == DoodleLayout.SCATTER) {
+            // The original look: a few big characters with smaller ones filling the gaps.
+            val tiers = floatArrayOf(150f, 115f, 90f, 70f, 52f, 38f)
+            for (r in tiers) {
+                val tries = (if (r > 80f) 70 else 160) * s.density.coerceIn(0.5f, 1.6f)
+                repeat(tries.toInt()) {
+                    val x = s.f(-r * 0.3f, s.w + r * 0.3f)
+                    val y = s.f(-r * 0.3f, s.h + r * 0.3f)
+                    val rr = r * s.f(0.85f, 1.15f)
+                    if (placed.none { hypot(it[0] - x, it[1] - y) < (it[2] + rr) * 0.78f }) placed.add(floatArrayOf(x, y, rr))
+                }
             }
+        } else {
+            for (p in s.spots(s.layout, 150f)) placed.add(floatArrayOf(p.x, p.y, 78f * p.scale))
         }
         placed.shuffle(s.rnd)
         for (c in placed) character(s, c[0], c[1], c[2])

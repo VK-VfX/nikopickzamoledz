@@ -81,18 +81,22 @@ data class WallpaperSpec(
     val seed: Long,
     val paletteId: String = "auto",
     val density: Float = 1f,
+    val layoutId: String = "auto",
 ) {
-    val key: String get() = "$styleId|$seed|$paletteId|$density"
+    val key: String get() = "$styleId|$seed|$paletteId|$density|$layoutId"
     val style: Style get() = Styles.byId(styleId)
     val palette: Palette get() = Palettes.resolve(paletteId, seed, style)
+    val layout: DoodleLayout get() = DoodleLayout.resolve(layoutId, seed)
 
     companion object {
         fun fromKey(key: String): WallpaperSpec? {
             val p = key.split('|')
-            if (p.size != 4) return null
+            // Four fields is the pre-layout format kept by older favourites.
+            if (p.size != 4 && p.size != 5) return null
             val seed = p[1].toLongOrNull() ?: return null
             val density = p[3].toFloatOrNull() ?: return null
-            return WallpaperSpec(p[0], seed, p[2], density)
+            // Favourites saved before arrangements existed used the jittered grid.
+            return WallpaperSpec(p[0], seed, p[2], density, if (p.size == 5) p[4] else DoodleLayout.GRID.id)
         }
     }
 }
@@ -167,6 +171,8 @@ class Scene(
     val palette: Palette,
     val density: Float,
     val noise: Noise,
+    /** Arrangement for styles that lay doodles out across the page. */
+    val layout: DoodleLayout = DoodleLayout.SCATTER,
 ) {
     /** Device pixels per virtual unit, so styles that load bitmaps can pick a sensible resolution. */
     var pxPerUnit: Float = 1f
@@ -263,6 +269,7 @@ object Renderer {
             palette = spec.palette,
             density = spec.density,
             noise = Noise(spec.seed),
+            layout = spec.layout,
         )
         scene.pxPerUnit = scale
         spec.style.draw(scene)

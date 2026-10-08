@@ -18,6 +18,7 @@ curl -L -o deps/android-all-instrumented-15-robolectric-13954326-i7.jar \
   -Dpreview.only=koi_pond,gatti   # style ids, empty = every style
   -Dpreview.seed=1,2,3            # seeds
   -Dpreview.palette=auto          # palette id
+  -Dpreview.layout=rings,shape    # doodle arrangements
 # PNGs land in tools/preview/out/
 ```
 The `src/test/java/androidx/**` files are tiny stand-ins for androidx.test classes that Robolectric expects.

@@ -25,6 +25,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
 - **Detail slider.** Turn the density of stars, doodles, lines and particles up or down.
+- **Arrangements (Doodle world).** Lay the doodles out as a Grid, Rings, Spiral, Wave, Mosaic, Burst, Diagonal, Frame (a border that leaves the middle clear for the clock), Shape (packed into a heart, star, moon or circle) or a loose Scatter. Auto picks one from the seed.
 - **Save** as a lossless PNG at screen size, QHD+ (1440×3200) or 4K (2160×3840). Files go to `Pictures/Zamoled`, and no storage permission is needed.
 - **Apply** to the home screen, lock screen or both.
 - **Update banner:** the app checks this repo's latest release and offers a one-tap download when a newer version is out.
