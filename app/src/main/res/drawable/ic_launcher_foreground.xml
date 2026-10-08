@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Big four-point sparkle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,28 Q50,52 74,52 Q50,52 50,76 Q50,52 26,52 Q50,52 50,28 Z" />
+    <!-- Small companion sparkle -->
+    <path
+        android:fillColor="#7FE7FF"
+        android:pathData="M72,32 Q72,40 80,40 Q72,40 72,48 Q72,40 64,40 Q72,40 72,32 Z" />
+    <!-- Orbit ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#B388FF"
+        android:strokeWidth="1.6"
+        android:pathData="M54,54 m-30,0 a30,30 0,1 1,60 0 a30,30 0,1 1,-60 0" />
+</vector>
