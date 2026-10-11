@@ -112,7 +112,7 @@ jobs:
             **Install:** download `zamoled-release.apk` below on your phone and open it (allow installs from your browser if asked). From 1.2.0 on, the app tells you when a new version is out, and new versions install over the old one.
             `zamoled-debug.apk` is a debuggable build for testing.
 
-            - 63 styles across 14 worlds: Doodle, Minimal, Geometric, Space, Nature, Abstract, Neon, Audio, Mystic, City, Glitch, Pixel, Light and King of Kings
+            - 65 styles across 14 worlds: Doodle, Minimal, Geometric, Space, Nature, Abstract, Neon, Audio, Mystic, City, Glitch, Pixel, Light and King of Kings
             - 14 palettes, including Material You
             - Detail slider, doodle arrangements, and a live "pitch black %" readout
             - Save PNG at screen size, QHD+ or 4K; set as home, lock or both
