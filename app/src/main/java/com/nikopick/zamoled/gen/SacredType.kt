@@ -2,13 +2,15 @@ package com.nikopick.zamoled.gen
 
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 
 /**
  * Typographic wallpapers for the King of Kings world: words on black, nothing else.
- * Everything is set in a condensed sans and centred inside a square plate.
+ *
+ * These are the strictest wallpapers in the app. No glows, no blurred haloes, no gradient
+ * washes — anything that lifts a pixel off #000000 without being part of a letter is gone,
+ * so the screen stays switched off everywhere the type is not.
  */
 private object Type {
     val BOLD: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
@@ -50,25 +52,20 @@ private object Type {
     fun Scene.plate(cx: Float, cy: Float, half: Float, color: Int) {
         val outer = RectF(cx - half, cy - half, cx + half, cy + half)
         val inner = RectF(cx - half * 0.94f, cy - half * 0.94f, cx + half * 0.94f, cy + half * 0.94f)
-        canvas.drawRect(outer, stroke(color, half * 0.012f, 225))
-        canvas.drawRect(inner, stroke(color, half * 0.004f, 120))
+        canvas.drawRect(outer, stroke(color, half * 0.012f))
+        canvas.drawRect(inner, stroke(color, half * 0.004f, 150))
         val tick = half * 0.1f
         for (sx in floatArrayOf(-1f, 1f)) for (sy in floatArrayOf(-1f, 1f)) {
             val x = cx + sx * half
             val y = cy + sy * half
-            canvas.drawLine(x - sx * tick, y, x + sx * tick * 0.35f, y, stroke(color, half * 0.02f, 255))
-            canvas.drawLine(x, y - sy * tick, x, y + sy * tick * 0.35f, stroke(color, half * 0.02f, 255))
+            canvas.drawLine(x - sx * tick, y, x + sx * tick * 0.35f, y, stroke(color, half * 0.022f))
+            canvas.drawLine(x, y - sy * tick, x, y + sy * tick * 0.35f, stroke(color, half * 0.022f))
         }
     }
 
-    /** Condensed caps with a soft halo behind them, drawn centred on [cx]. */
-    fun Scene.plateText(text: String, cx: Float, baseline: Float, size: Float, color: Int, spacing: Float, face: Typeface = BOLD, alpha: Int = 255) {
-        val p = textPaint(size, color, face).apply { letterSpacing = spacing; this.alpha = alpha }
-        canvas.drawText(text, cx, baseline, Paint(p).apply {
-            this.alpha = (alpha * 0.32f).toInt()
-            maskFilter = android.graphics.BlurMaskFilter(size * 0.3f, android.graphics.BlurMaskFilter.Blur.NORMAL)
-        })
-        canvas.drawText(text, cx, baseline, p)
+    /** Flat condensed caps. One pass, no halo: the letters are the only lit pixels. */
+    fun Scene.flatText(text: String, x: Float, baseline: Float, size: Float, color: Int, spacing: Float, face: Typeface = BOLD, align: Paint.Align = Paint.Align.CENTER) {
+        canvas.drawText(text, x, baseline, textPaint(size, color, face, align).apply { letterSpacing = spacing })
     }
 
     /** Words Christ speaks in the Gospels, with the book they come from. */
@@ -102,18 +99,16 @@ private object Type {
 
 /** The name alone: KING OF KINGS, condensed, squared in the middle of the black. */
 object TheName : Style("kok_name", "The Name", Category.KINGDOM) {
-    override val autoPalettes = listOf("sacred", "divine", "gold", "mono", "violet")
+    override val autoPalettes = listOf("mono", "sacred", "divine", "gold", "violet")
 
     override fun draw(s: Scene) {
-        val glow = s.color(0)
-        val ink = mix(Color.WHITE, lighten(glow, 0.4f), 0.45f)
+        val rule = s.color(0)
+        val ink = Color.WHITE
         val half = s.w * 0.37f
         val cy = s.h * 0.46f
-        s.starSky(60, s.h, 2)
-        s.softGlow(s.cx, cy, half * 2.1f, glow, 48)
 
         Type.run {
-            s.plate(s.cx, cy, half, lighten(glow, 0.25f))
+            s.plate(s.cx, cy, half, rule)
 
             // KING / OF / KINGS, sized so the long word just clears the plate.
             val inner = half * 1.44f
@@ -121,69 +116,30 @@ object TheName : Style("kok_name", "The Name", Category.KINGDOM) {
             val big = 100f * inner / probe.measureText("KINGS")
             val small = big * 0.3f
 
-            s.plateText("KING", s.cx, cy - big * 0.42f, big, ink, 0.1f)
-            s.plateText("KINGS", s.cx, cy + big * 1.0f, big, ink, 0.1f)
+            s.flatText("KING", s.cx, cy - big * 0.42f, big, ink, 0.1f)
+            s.flatText("KINGS", s.cx, cy + big * 1.0f, big, ink, 0.1f)
 
             // The small OF, with a hairline rule running out to each side of it.
             val ofY = cy + big * 0.26f
-            s.plateText("OF", s.cx, ofY, small, ink, 0.42f, Type.LIGHT, 215)
+            s.flatText("OF", s.cx, ofY, small, ink, 0.42f, Type.LIGHT)
             val gap = small * 1.5f
             for (sgn in floatArrayOf(-1f, 1f)) {
-                s.canvas.drawLine(s.cx + sgn * gap, ofY - small * 0.3f, s.cx + sgn * inner * 0.5f, ofY - small * 0.3f, s.stroke(lighten(glow, 0.3f), 2f, 150))
+                s.canvas.drawLine(s.cx + sgn * gap, ofY - small * 0.3f, s.cx + sgn * inner * 0.5f, ofY - small * 0.3f, s.stroke(rule, 2f))
             }
         }
-        Sacred.run { s.motes(18, glow) }
     }
 }
 
-/** A word of Christ from the Gospels, set in the same square plate. */
-object GospelPlate : Style("kok_verse", "Gospel Plate", Category.KINGDOM) {
-    override val autoPalettes = listOf("sacred", "divine", "gold", "mono", "violet")
-
-    override fun draw(s: Scene) {
-        val glow = s.color(0)
-        val ink = mix(Color.WHITE, lighten(glow, 0.4f), 0.4f)
-        val (verse, ref) = Type.VERSES[s.i(0, Type.VERSES.size)]
-        val half = s.w * 0.37f
-        val cy = s.h * 0.46f
-        s.starSky(60, s.h, 2)
-        s.softGlow(s.cx, cy, half * 2.1f, glow, 46)
-
-        Type.run {
-            s.plate(s.cx, cy, half, lighten(glow, 0.25f))
-            val inner = half * 1.46f
-            val probe = s.textPaint(100f, ink, Type.BOLD).apply { letterSpacing = 0.06f }
-            val (fitted, lines) = Type.fit(verse, probe, inner, 4, half * 0.42f, half * 0.12f)
-            // The verse lives in the upper part of the plate; the reference owns the rest.
-            val textRoom = half * 1.2f
-            val size = minOf(fitted, textRoom / (lines.size * 1.12f))
-            val lead = size * 1.12f
-            val block = lines.size * lead
-            var y = cy - half * 0.8f + (textRoom - block) * 0.5f + size * 0.82f
-            for (line in lines) {
-                s.plateText(line, s.cx, y, size, ink, 0.06f)
-                y += lead
-            }
-            // A rule, then the reference in small spaced caps.
-            val refY = cy + half * 0.68f
-            s.canvas.drawLine(s.cx - inner * 0.16f, refY - half * 0.19f, s.cx + inner * 0.16f, refY - half * 0.19f, s.stroke(lighten(glow, 0.3f), 2.2f, 190))
-            s.plateText(ref, s.cx, refY, half * 0.11f, lighten(glow, 0.35f), 0.5f, Type.LIGHT, 230)
-        }
-        Sacred.run { s.motes(18, glow) }
-    }
-}
-
-/** Red letters: the words of Christ set large across the whole screen. */
+/** Red letters: the words of Christ set large across the whole screen, and nothing else. */
 object RedLetters : Style("kok_redletters", "Red Letters", Category.KINGDOM) {
-    override val autoPalettes = listOf("sacred", "lava", "divine", "mono", "gold")
+    override val autoPalettes = listOf("lava", "mono", "sacred", "gold", "divine")
 
     override fun draw(s: Scene) {
-        val glow = s.color(0)
         val (verse, ref) = Type.VERSES[s.i(0, Type.VERSES.size)]
         val margin = s.w * 0.11f
-        val ink = mix(Color.WHITE, lighten(glow, 0.35f), 0.3f)
-        val accent = if (s.chance(0.5f)) Sacred.CRIMSON else lighten(glow, 0.2f)
-        s.starSky(70, s.h, 3)
+        val ink = Color.WHITE
+        // The lit line: crimson by default, or the palette's own colour at full strength.
+        val accent = if (s.chance(0.55f)) Color.rgb(214, 36, 48) else s.color(0)
 
         val probe = s.textPaint(100f, ink, Type.BOLD).apply { letterSpacing = 0.02f }
         val (size, lines) = Type.fit(verse, probe, s.w - margin * 2f, 5, s.w * 0.3f, s.w * 0.08f)
@@ -192,37 +148,17 @@ object RedLetters : Style("kok_redletters", "Red Letters", Category.KINGDOM) {
         val groupH = (lines.size - 1) * lead + size * 1.75f
         val top = (s.h - groupH) * 0.5f + size * 0.78f
 
-        // The quotation mark behind the words.
-        s.canvas.drawText("“", margin * 0.3f, top - size * 0.1f, s.textPaint(size * 2.4f, withAlpha(glow, 42), Type.BOLD, Paint.Align.LEFT))
-        s.softGlow(s.cx, s.h * 0.5f, s.w * 0.9f, glow, 42)
-
         // One line carries the accent colour.
         val lit = s.i(0, lines.size)
         var y = top
         for ((k, line) in lines.withIndex()) {
-            val color = if (k == lit) accent else ink
-            val p = s.textPaint(size, color, Type.BOLD, Paint.Align.LEFT).apply { letterSpacing = 0.02f }
-            s.canvas.drawText(line, margin, y, Paint(p).apply {
-                alpha = 90
-                maskFilter = android.graphics.BlurMaskFilter(size * 0.26f, android.graphics.BlurMaskFilter.Blur.NORMAL)
-            })
-            s.canvas.drawText(line, margin, y, p)
+            Type.run { s.flatText(line, margin, y, size, if (k == lit) accent else ink, 0.02f, Type.BOLD, Paint.Align.LEFT) }
             y += lead
         }
 
         // Reference under a short rule, below the last line.
         val baseY = top + (lines.size - 1) * lead + size * 0.55f
-        s.canvas.drawLine(margin, baseY, margin + s.w * 0.14f, baseY, s.stroke(lighten(glow, 0.3f), 2.4f, 200))
-        s.canvas.drawText(
-            ref, margin, baseY + size * 0.4f,
-            s.textPaint(s.w * 0.035f, lighten(glow, 0.35f), Type.LIGHT, Paint.Align.LEFT).apply { letterSpacing = 0.5f },
-        )
-
-        // A thin bar of light down one edge.
-        val edge = Path()
-        edge.moveTo(margin * 0.42f, top - size)
-        edge.lineTo(margin * 0.42f, y - lead + size * 0.3f)
-        s.canvas.drawPath(edge, s.stroke(withAlpha(lighten(glow, 0.3f), 150), 3f, 150, 10f))
-        Sacred.run { s.motes(20, glow) }
+        s.canvas.drawLine(margin, baseY, margin + s.w * 0.14f, baseY, s.stroke(accent, 3f))
+        Type.run { s.flatText(ref, margin, baseY + size * 0.4f, s.w * 0.035f, ink, 0.5f, Type.LIGHT, Paint.Align.LEFT) }
     }
 }

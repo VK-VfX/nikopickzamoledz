@@ -832,6 +832,6 @@ object KingOfKings {
     val styles: List<Style> = listOf(
         TheRisen, Calvary, ChiRho, ThornCrown, SacredHeart, HolyDove,
         LambOfGod, OpenWord, PrayingHands, EmptyTomb, RoseWindow, GoodShepherd, Ichthys,
-        TheName, GospelPlate, RedLetters,
+        TheName, RedLetters,
     )
 }

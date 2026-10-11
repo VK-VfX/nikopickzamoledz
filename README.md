@@ -4,7 +4,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **65 wallpapers across 14 worlds**, each with its own art direction
+- **64 wallpapers across 14 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
   | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Sketch (cute cats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
@@ -20,7 +20,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
   | Glitch    | Aesthetic (glitched marble bust), Error.exe windows, Data Rain |
   | Pixel     | Pixel Castle, Pixel Quest (hero, slime, chest, HUD), Pixel Space, Pixel Peaks |
   | Light     | Lantern Festival, Candlelight, Jellyfish, Fireflies |
-  | King of Kings | The Risen, Calvary, Chi-Rho, Crown of Thorns, Sacred Heart, The Dove, Lamb of God, The Word, Praying Hands, Empty Tomb, Rose Window, Good Shepherd, Ichthys, and three typographic ones: The Name (KING OF KINGS squared in the middle), Gospel Plate (a word of Christ in the same square) and Red Letters (the words set large across the screen) |
+  | King of Kings | The Risen, Calvary, Chi-Rho, Crown of Thorns, Sacred Heart, The Dove, Lamb of God, The Word, Praying Hands, Empty Tomb, Rose Window, Good Shepherd, Ichthys, and two typographic ones, drawn with no glow at all so the screen stays switched off around the letters: The Name (KING OF KINGS squared in the middle) and Red Letters (a saying of Christ set large across the screen) |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
