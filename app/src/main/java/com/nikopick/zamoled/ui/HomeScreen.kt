@@ -136,6 +136,7 @@ class HomeState(
 ) {
     var tab by mutableStateOf(HomeTab.EXPLORE)
     var filter by mutableStateOf(FILTER_ALL)
+    var subcategory by mutableStateOf<String?>(null)
     var batch by mutableLongStateOf(System.currentTimeMillis())
     var pages by mutableIntStateOf(1)
     var update by mutableStateOf<UpdateInfo?>(null)
@@ -151,9 +152,10 @@ fun rememberHomeState(): HomeState {
     return state
 }
 
-private fun buildSpecs(filter: String, batch: Long, count: Int): List<WallpaperSpec> {
-    val styles = if (filter == FILTER_ALL) Styles.all else Styles.of(Category.valueOf(filter))
-    val rnd = Random(batch xor filter.hashCode().toLong())
+private fun buildSpecs(filter: String, subcategory: String?, batch: Long, count: Int): List<WallpaperSpec> {
+    val styles = if (filter == FILTER_ALL) Styles.all else Styles.of(Category.valueOf(filter), subcategory)
+    if (styles.isEmpty()) return emptyList()
+    val rnd = Random(batch xor filter.hashCode().toLong() xor subcategory.hashCode().toLong())
     return List(count) { i ->
         val style = if (filter == FILTER_ALL) styles[rnd.nextInt(styles.size)] else styles[i % styles.size]
         WallpaperSpec(style.id, rnd.nextLong())
@@ -232,6 +234,7 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
                 HomeTab.EXPLORE -> ExploreTab(state, favorites, onOpen)
                 HomeTab.CATEGORIES -> CategoriesTab(state) { category ->
                     state.filter = category.name
+                    state.subcategory = null
                     state.pages = 1
                     state.tab = HomeTab.EXPLORE
                 }
@@ -246,10 +249,15 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
 @Composable
 private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSpec) -> Unit) {
     val scope = rememberCoroutineScope()
-    val specs = remember(state.filter, state.batch, state.pages) { buildSpecs(state.filter, state.batch, state.pages * PAGE) }
+    val specs = remember(state.filter, state.subcategory, state.batch, state.pages) {
+        buildSpecs(state.filter, state.subcategory, state.batch, state.pages * PAGE)
+    }
     val featured = remember(state.batch) { featuredSpecs(state.batch) }
     val showFeatured = state.filter == FILTER_ALL
-    val headerCount = if (showFeatured) 3 else 2
+    val category = if (state.filter == FILTER_ALL) null else Category.valueOf(state.filter)
+    val subcategories = remember(state.filter) { category?.let { Styles.subcategories(it) }.orEmpty() }
+    val showSubs = subcategories.size > 1
+    val headerCount = (if (showFeatured) 3 else 2) + (if (showSubs) 1 else 0)
     val grid = state.exploreGrid
 
     LaunchedEffect(specs.size, headerCount) {
@@ -283,8 +291,19 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
             FilterRow(selected = state.filter) { f ->
                 if (f != state.filter) {
                     state.filter = f
+                    state.subcategory = null
                     state.pages = 1
                     scope.launch { if (grid.firstVisibleItemIndex > 1) grid.animateScrollToItem(if (f == FILTER_ALL) 2 else 1) }
+                }
+            }
+        }
+        if (showSubs && category != null) {
+            item(key = "subfilters", span = { GridItemSpan(maxLineSpan) }) {
+                SubFilterRow(category, subcategories, state.subcategory) { s ->
+                    if (s != state.subcategory) {
+                        state.subcategory = s
+                        state.pages = 1
+                    }
                 }
             }
         }
@@ -488,6 +507,43 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
     }
 }
 
+/** Sub-categories inside the chosen category: a second, narrower pass over the same feed. */
+@Composable
+private fun SubFilterRow(category: Category, subcategories: List<String>, selected: String?, onSelect: (String?) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        SectionTitle("In ${category.label}")
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+        ) {
+            item(key = "sub_all") {
+                FilterChip(
+                    selected = selected == null,
+                    onClick = { onSelect(null) },
+                    label = { Text("Everything") },
+                    shape = CircleShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                )
+            }
+            items(subcategories, key = { it }) { name ->
+                FilterChip(
+                    selected = selected == name,
+                    onClick = { onSelect(name) },
+                    label = { Text(name) },
+                    shape = CircleShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun FilterRow(selected: String, onSelect: (String) -> Unit) {
     val filters = listOf(Triple(FILTER_ALL, "All", Icons.Rounded.GridView)) +
@@ -599,7 +655,7 @@ private fun CategoriesTab(state: HomeState, onPick: (Category) -> Unit) {
             Column(Modifier.padding(start = 4.dp, bottom = 8.dp)) {
                 Text("Categories", style = MaterialTheme.typography.headlineLarge)
                 Text(
-                    "${Styles.categories.size} worlds, ${Styles.all.size} wallpapers. Tap one to browse it.",
+                    "${Styles.categories.size} worlds, ${Styles.all.size} wallpapers. Tap one, then narrow it down.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -658,7 +714,7 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 Text(category.label, style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Text(
-                    styles.joinToString(" · ") { it.name },
+                    Styles.subcategories(category).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.7f),
                     maxLines = 2,

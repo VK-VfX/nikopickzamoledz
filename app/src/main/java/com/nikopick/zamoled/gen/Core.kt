@@ -318,8 +318,39 @@ object Styles {
         GothMoonQueen, GothRavenLady, GothWanderer,
     )
 
+    /**
+     * Sub-categories. Styles that share a label are browsed together; a style that is not
+     * listed here is its own sub-category, under its own name. Used by the chips that
+     * appear under a category so the feed can be narrowed without endless scrolling.
+     */
+    private val subcategories: Map<String, String> = mapOf(
+        // Doodle
+        "doodle_scatter" to "Classic", "doodle_pattern" to "Classic", "doodle_spotlight" to "Classic",
+        "comic_pop" to "Comic", "doodle_stickers" to "Comic",
+        "gatti" to "Cats", "gatti_sketch" to "Cats",
+        "space_doodles" to "Space",
+        // King of Kings
+        "kok_risen" to "The Christ", "kok_shepherd" to "The Christ",
+        "kok_calvary" to "The Passion", "kok_thorns" to "The Passion",
+        "kok_heart" to "The Passion", "kok_tomb" to "The Passion",
+        "kok_chirho" to "Symbols", "kok_dove" to "Symbols", "kok_lamb" to "Symbols",
+        "kok_fish" to "Symbols", "kok_window" to "Symbols", "kok_word" to "Symbols",
+        "kok_hands" to "Symbols",
+        "kok_name" to "Words", "kok_redletters" to "Words",
+    )
+
     fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: retired.firstOrNull { it.id == id } ?: all[0]
     fun of(category: Category): List<Style> = all.filter { it.category == category }
+
+    /** The sub-category a style is browsed under. */
+    fun subcategoryOf(style: Style): String = subcategories[style.id] ?: style.name
+
+    /** The sub-categories within a category, in the order their styles are registered. */
+    fun subcategories(category: Category): List<String> = of(category).map(::subcategoryOf).distinct()
+
+    /** Styles in a category, narrowed to one sub-category when [subcategory] is given. */
+    fun of(category: Category, subcategory: String?): List<Style> =
+        of(category).filter { subcategory == null || subcategoryOf(it) == subcategory }
 
     /** Categories that currently have at least one style to show. */
     val categories: List<Category> get() = Category.entries.filter { c -> all.any { it.category == c } }

@@ -113,6 +113,7 @@ jobs:
             `zamoled-debug.apk` is a debuggable build for testing.
 
             - 64 styles across 14 worlds: Doodle, Minimal, Geometric, Space, Nature, Abstract, Neon, Audio, Mystic, City, Glitch, Pixel, Light and King of Kings
+            - Sub-categories inside every world, so you narrow the feed instead of scrolling it
             - 14 palettes, including Material You
             - Detail slider, doodle arrangements, and a live "pitch black %" readout
             - Save PNG at screen size, QHD+ or 4K; set as home, lock or both
