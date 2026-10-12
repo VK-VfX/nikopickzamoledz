@@ -25,6 +25,8 @@ class Pen(
     glow: Float = 0f,
     /** Draw eyes and other "dark" details in ink, for white line art over black-filled shapes. */
     private val darkInk: Boolean = false,
+    /** Light every filled shape as a volume instead of flooding it with a flat colour. */
+    private val shaded: Boolean = false,
 ) {
     val c: Canvas get() = s.canvas
     private val linePaint = s.stroke(ink, width, alpha)
@@ -36,33 +38,45 @@ class Pen(
     private val fillPaints: List<Paint>? = fills?.map { s.fill(it, alpha) }
     val filled: Boolean get() = fillPaints != null
 
+    private val fillColors: IntArray? = fills
+
     private fun fp(i: Int): Paint? {
         val f = fillPaints ?: return null
         return if (i < 0) null else f[i % f.size]
     }
 
+    /** The fill for a shape of this size: a lit volume when shaded, the flat colour otherwise. */
+    private fun fp(i: Int, box: RectF): Paint? {
+        if (!shaded) return fp(i)
+        val cols = fillColors ?: return null
+        if (i < 0) return null
+        return Shade.volume(box, cols[i % cols.size])
+    }
+
     fun path(p: Path, fill: Int = -1) {
-        fp(fill)?.let { c.drawPath(p, it) }
+        val box = RectF()
+        if (shaded && fill >= 0) p.computeBounds(box, true)
+        fp(fill, box)?.let { c.drawPath(p, it) }
         glowPaint?.let { c.drawPath(p, it) }
         c.drawPath(p, linePaint)
     }
 
     fun circle(x: Float, y: Float, r: Float, fill: Int = -1) {
-        fp(fill)?.let { c.drawCircle(x, y, r, it) }
+        fp(fill, RectF(x - r, y - r, x + r, y + r))?.let { c.drawCircle(x, y, r, it) }
         glowPaint?.let { c.drawCircle(x, y, r, it) }
         c.drawCircle(x, y, r, linePaint)
     }
 
     fun oval(l: Float, t: Float, r: Float, b: Float, fill: Int = -1) {
         val rect = RectF(l, t, r, b)
-        fp(fill)?.let { c.drawOval(rect, it) }
+        fp(fill, rect)?.let { c.drawOval(rect, it) }
         glowPaint?.let { c.drawOval(rect, it) }
         c.drawOval(rect, linePaint)
     }
 
     fun rrect(l: Float, t: Float, r: Float, b: Float, rad: Float, fill: Int = -1) {
         val rect = RectF(l, t, r, b)
-        fp(fill)?.let { c.drawRoundRect(rect, rad, rad, it) }
+        fp(fill, rect)?.let { c.drawRoundRect(rect, rad, rad, it) }
         glowPaint?.let { c.drawRoundRect(rect, rad, rad, it) }
         c.drawRoundRect(rect, rad, rad, linePaint)
     }
@@ -138,9 +152,10 @@ object Doodles {
     fun draw(
         s: Scene, index: Int, x: Float, y: Float, size: Float, rot: Float,
         ink: Int, width: Float, fills: IntArray? = null, alpha: Int = 255, glow: Float = 0f,
+        shaded: Boolean = true,
     ) {
         s.unit(x, y, size, rot) {
-            val pen = Pen(s, ink, width / size, fills, alpha, if (glow > 0f) glow / size else 0f)
+            val pen = Pen(s, ink, width / size, fills, alpha, if (glow > 0f) glow / size else 0f, shaded = shaded && fills != null)
             icons[index % icons.size](pen)
         }
     }

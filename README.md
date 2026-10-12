@@ -7,7 +7,7 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 - **64 wallpapers across 14 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
-  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Sketch (cute cats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
+  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Colour (painted cats with real coats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
   | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
   | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
   | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
@@ -70,6 +70,17 @@ You need Android Studio (or the Android SDK with platform 35) and JDK 17.
 Requires Android 10 (API 29) or newer.
 
 ## How it works
+
+### Shading
+
+`gen/ShadeKit.kt` is what separates a drawing from a painting. One key light sits up and to
+the left of every shape: `Shade.volume` grades a fill from highlight to core to shadow,
+`occlude` darkens the edge the light cannot reach, `sheen` puts the specular back, `fur`
+combs tapered hairs out along a silhouette with `PathMeasure`, `coat` lays guard hairs
+across it, and `eye` builds an eye out of iris, pupil, catchlight and a wet glint. `Pen`
+takes a `shaded` flag, so every filled shape it draws becomes a lit volume rather than a
+flat colour.
+
 
 `gen/Core.kt` holds the engine. Each style draws on a virtual canvas that is 1000 units wide, which is scaled to the target bitmap. Because of that, the same seed gives the same picture as a 360 px thumbnail and as a 4K export. Randomness comes from `kotlin.random.Random(seed)` plus a seeded Perlin noise. A wallpaper is fully described by `style | seed | palette | detail | arrangement`, and favourites are stored as that string.
 
