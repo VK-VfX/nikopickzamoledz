@@ -106,3 +106,24 @@ fun Modifier.shimmer(): Modifier {
         drawRect(Brush.linearGradient(colors, start = Offset(x, 0f), end = Offset(x + 500f, 500f)))
     }
 }
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+val LocalSharedScope = staticCompositionLocalOf<SharedTransitionScope?> { null }
+val LocalNavAnimScope = staticCompositionLocalOf<AnimatedVisibilityScope?> { null }
+
+/** Links a wallpaper thumbnail to the full-screen preview so it flies between screens. */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.sharedWallpaper(key: String, shape: Shape): Modifier {
+    val shared = LocalSharedScope.current ?: return this
+    val anim = LocalNavAnimScope.current ?: return this
+    val base = this
+    return with(shared) {
+        base.sharedElement(
+            state = rememberSharedContentState(key = "wallpaper-$key"),
+            animatedVisibilityScope = anim,
+            boundsTransform = { _, _ -> spring(dampingRatio = 0.85f, stiffness = 300f) },
+            clipInOverlayDuringTransition = OverlayClip(shape),
+        )
+    }
+}
