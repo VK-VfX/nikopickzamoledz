@@ -75,8 +75,6 @@ fun Modifier.enterOnce(key: String, index: Int): Modifier {
     }
 }
 
-/** Animated loading placeholder. */
-@Composable
 val LocalShimmer = androidx.compose.runtime.compositionLocalOf<androidx.compose.runtime.State<Float>?> { null }
 
 /**

@@ -294,7 +294,7 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
                 SubFilterRow(category, subcategories, state.subcategory) { s ->
                     if (s != state.subcategory) {
                         state.subcategory = s
-                        }
+                    }
                 }
             }
         }
