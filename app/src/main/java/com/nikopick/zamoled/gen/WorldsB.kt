@@ -389,7 +389,8 @@ object LiquidMarble : Style("liquid_marble", "Liquid Marble", Category.ABSTRACT)
                 s.noise.fbm(x + warp * qx, y + warp * qy, 3)
             }
         }
-        val levels = 18
+        // More detail draws more contour lines, so the marble gets finer veins.
+        val levels = (18 * s.density.coerceIn(0.4f, 2f)).toInt().coerceAtLeast(7)
         val gold = Color.rgb(255, 214, 120)
         for (l in 0 until levels) {
             val level = -0.6f + 1.2f * l / (levels - 1f)
@@ -491,6 +492,14 @@ object NeonSign : Style("neon_sign", "Neon Sign", Category.NEON) {
         val cx = s.cx
         val cy = s.h * s.f(0.36f, 0.44f)
         s.softGlow(cx, cy, 520f, c1, 50)
+        // More detail adds the small neon of other signs in the dark around this one.
+        repeat(s.count(8) - 4) {
+            val sp = Path()
+            val sx = s.f(40f, s.w - 40f)
+            val sy = s.f(s.h * 0.1f, s.h * 0.8f)
+            if (s.chance(0.5f)) sp.addCircle(sx, sy, s.f(14f, 34f), Path.Direction.CW) else { sp.moveTo(sx, sy); sp.lineTo(sx + s.f(-60f, 60f), sy + s.f(-30f, 30f)); sp.lineTo(sx + s.f(-60f, 60f), sy + s.f(10f, 60f)) }
+            s.neonPath(sp, s.color(s.i(0, 3)), 2f, dim = true)
+        }
         // Mounting wires.
         s.canvas.drawLine(cx - 180f, 0f, cx - 180f, cy - 260f, s.stroke(Color.rgb(120, 120, 130), 1.6f, 150))
         s.canvas.drawLine(cx + 180f, 0f, cx + 180f, cy - 260f, s.stroke(Color.rgb(120, 120, 130), 1.6f, 150))
@@ -553,7 +562,7 @@ object NeonSign : Style("neon_sign", "Neon Sign", Category.NEON) {
         // Reflections on the wet street.
         val street = s.h * 0.86f
         s.canvas.drawLine(0f, street, s.w, street, s.stroke(Color.rgb(90, 90, 100), 1.4f, 160))
-        repeat(40) {
+        repeat(s.count(40)) {
             val y = street + s.f(10f, s.h - street)
             val x = cx + s.gauss() * 200f
             s.canvas.drawLine(x - s.f(10f, 60f), y, x + s.f(10f, 60f), y, s.stroke(if (s.chance(0.5f)) c1 else c2, 2f, s.i(40, 140)))

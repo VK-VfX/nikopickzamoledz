@@ -13,14 +13,15 @@ class RenderAll {
         val only = System.getProperty("preview.only").orEmpty().split(",").filter { it.isNotBlank() }
         val seeds = System.getProperty("preview.seed").orEmpty().split(",").mapNotNull { it.toLongOrNull() }.ifEmpty { listOf(1L) }
         val width = System.getProperty("preview.width")?.toIntOrNull() ?: 540
+        val density = System.getProperty("preview.density")?.toFloatOrNull() ?: 1f
         val palette = System.getProperty("preview.palette").orEmpty().ifBlank { "auto" }
         val layouts = System.getProperty("preview.layout").orEmpty().split(",").filter { it.isNotBlank() }.ifEmpty { listOf("auto") }
         val styles = if (only.isEmpty()) Styles.all else only.map { Styles.byId(it) }
         for (style in styles) for (seed in seeds) for (layout in layouts) {
             val t0 = System.nanoTime()
             try {
-                val bmp = Renderer.render(WallpaperSpec(style.id, seed * -7046029254386353131L + 12345L, palette, 1f, layout), width, (width * 1170 / 540))
-                File(out, "${style.id}_${layout}_$seed.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                val bmp = Renderer.render(WallpaperSpec(style.id, seed * -7046029254386353131L + 12345L, palette, density, layout), width, (width * 1170 / 540))
+                File(out, "${style.id}_${layout}_$seed${if (density != 1f) "_d$density" else ""}.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 println("OK   ${style.id} $layout seed=$seed ${(System.nanoTime() - t0) / 1_000_000}ms")
             } catch (e: Throwable) {
                 println("FAIL ${style.id} $layout seed=$seed ${e::class.simpleName}: ${e.message}")

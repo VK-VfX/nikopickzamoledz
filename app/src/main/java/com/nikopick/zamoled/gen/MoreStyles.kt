@@ -325,42 +325,6 @@ object GlitchBlocks : Style("glitch_blocks", "Glitch", Category.GLITCH) {
     }
 }
 
-object DataRain : Style("data_rain", "Data Rain", Category.GLITCH) {
-    private const val GLYPHS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホ0123456789ZAMOLED"
-
-    override fun draw(s: Scene) {
-        val size = 20f
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = size
-            typeface = Typeface.MONOSPACE
-            textAlign = Paint.Align.CENTER
-        }
-        var x = size / 2f
-        while (x < s.w) {
-            if (s.chance(0.55f * s.density.coerceAtMost(1.6f))) {
-                val len = s.i(6, 30)
-                val headY = s.f(0f, s.h + len * size)
-                val color = s.grad(x / s.w)
-                for (k in 0 until len) {
-                    val y = headY - k * size
-                    if (y < -size || y > s.h + size) continue
-                    val ch = GLYPHS[s.i(0, GLYPHS.length)].toString()
-                    if (k == 0) {
-                        paint.color = Color.WHITE
-                        paint.alpha = 255
-                        paint.setShadowLayer(8f, 0f, 0f, color)
-                    } else {
-                        paint.color = color
-                        paint.alpha = (230 * (1f - k / len.toFloat())).toInt().coerceAtLeast(20)
-                        paint.clearShadowLayer()
-                    }
-                    s.canvas.drawText(ch, x, y, paint)
-                }
-            }
-            x += size * 1.1f
-        }
-    }
-}
 
 object PixelDrip : Style("pixel_drip", "Pixel Drip", Category.GLITCH) {
     override fun draw(s: Scene) {
@@ -434,39 +398,6 @@ private fun Scene.pixelStars(n: Int, px: Float) {
     }
 }
 
-object PixelSpace : Style("pixel_space", "Pixel Space", Category.PIXEL) {
-    override fun draw(s: Scene) {
-        val px = s.pixelGrid()
-        s.pixelStars(160, px)
-        // Rasterised planet, shaded in three palette tones.
-        val cells = s.i(9, 15)
-        val pcx = (s.w * s.f(0.3f, 0.7f) / px).toInt() * px
-        val pcy = (s.h * s.f(0.25f, 0.45f) / px).toInt() * px
-        val lx = -0.6f
-        val ly = -0.6f
-        for (gy in -cells..cells) for (gx in -cells..cells) {
-            val dx = gx / cells.toFloat()
-            val dy = gy / cells.toFloat()
-            val d = dx * dx + dy * dy
-            if (d > 1f) continue
-            val dz = sqrt(1f - d)
-            val light = (dx * lx + dy * ly + dz * 0.5f).coerceIn(-1f, 1f)
-            val tone = when {
-                light > 0.45f -> s.color(1)
-                light > 0f -> s.color(0)
-                light > -0.35f -> s.color(2)
-                else -> continue
-            }
-            val x = pcx + gx * px
-            val y = pcy + gy * px
-            s.canvas.drawRect(x, y, x + px - 1f, y + px - 1f, s.fill(tone, 230))
-        }
-        repeat(s.i(3, 6)) {
-            val ipx = s.f(5f, 8f)
-            s.sprite(INVADER, s.f(40f, s.w - 120f), s.f(s.h * 0.55f, s.h * 0.9f), ipx, s.anyColor())
-        }
-    }
-}
 
 object PixelHearts : Style("pixel_hearts", "Pixel Hearts", Category.PIXEL) {
     override fun draw(s: Scene) {
@@ -490,47 +421,6 @@ object PixelHearts : Style("pixel_hearts", "Pixel Hearts", Category.PIXEL) {
     }
 }
 
-object PixelLandscape : Style("pixel_landscape", "Pixel Peaks", Category.PIXEL) {
-    override fun draw(s: Scene) {
-        val px = s.pixelGrid()
-        s.pixelStars(120, px)
-        // Pixel moon outline.
-        val mr = s.i(5, 8)
-        val mx = (s.w * s.f(0.2f, 0.8f) / px).toInt() * px
-        val my = (s.h * s.f(0.12f, 0.25f) / px).toInt() * px
-        for (gy in -mr..mr) for (gx in -mr..mr) {
-            val d = sqrt((gx * gx + gy * gy).toFloat())
-            if (d <= mr + 0.3f && d >= mr - 0.9f) {
-                s.canvas.drawRect(mx + gx * px, my + gy * px, mx + (gx + 1) * px - 1f, my + (gy + 1) * px - 1f, s.fill(s.color(2)))
-            }
-        }
-        for (layer in 0..2) {
-            val base = s.h * (0.55f + layer * 0.12f)
-            val amp = 260f - layer * 60f
-            var prev = -1f
-            var x = 0f
-            val color = s.grad(layer / 2f)
-            while (x < s.w) {
-                val n = (s.noise.fbm(x * 0.004f * (1 + layer * 0.5f), layer * 7f + 2f) + 0.55f).coerceIn(0f, 1.2f)
-                val top = (((base - n * amp * 1.5f) / px).toInt() * px)
-                s.canvas.drawRect(x, top, x + px, s.h, s.fill(darken(color, 0.78f)))
-                s.canvas.drawRect(x, top, x + px - 1f, top + px - 1f, s.fill(color, 160 + layer * 40))
-                if (prev >= 0f && abs(prev - top) > px) {
-                    val from = minOf(prev, top)
-                    val to = maxOf(prev, top)
-                    var yy = from
-                    while (yy < to) {
-                        val cx = if (prev < top) x - px else x
-                        s.canvas.drawRect(cx.coerceAtLeast(0f), yy, cx.coerceAtLeast(0f) + px - 1f, yy + px - 1f, s.fill(color, 120 + layer * 60))
-                        yy += px
-                    }
-                }
-                prev = top
-                x += px
-            }
-        }
-    }
-}
 
 // ---------- Light ----------
 

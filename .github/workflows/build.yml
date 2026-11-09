@@ -112,7 +112,7 @@ jobs:
             **Install:** download `zamoled-release.apk` below on your phone and open it (allow installs from your browser if asked). From 1.2.0 on, the app tells you when a new version is out, and new versions install over the old one.
             `zamoled-debug.apk` is a debuggable build for testing.
 
-            - 54 styles across 14 worlds, including a new For Pixel world of Material 3 Expressive wallpapers that follow your Material You colours, and hand-made Doodles: Sticker Bomb, Gouache and Chalk
+            - 63 styles across 13 worlds. New: a wolf that looks like a wolf, Northern Lights and more Nature, Neon Tunnel/Ribbons/Storm, Pixel Space and Pixel City, Spider-Verse-style Dimension Split and cyberpunk Neon Dystopia, six Data Rain looks, a rebuilt Mystic world, and 13 Material You designs. Audio is gone
             - Sub-categories inside every world, so you narrow the feed instead of scrolling it
             - 14 palettes, including Material You
             - Detail slider, doodle arrangements, and a live "pitch black %" readout

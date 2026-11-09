@@ -20,6 +20,7 @@ The Gradle build is already pointed at the same mirror.
   -Dpreview.seed=1,2,3            # seeds
   -Dpreview.palette=auto          # palette id
   -Dpreview.layout=rings,shape    # doodle arrangements
+  -Dpreview.density=1.8          # the Detail slider, 0.4 to 1.8
   -Dpreview.width=2160            # output width in pixels (default 540); use it to time a 4K export
 # PNGs land in tools/preview/out/
 ```

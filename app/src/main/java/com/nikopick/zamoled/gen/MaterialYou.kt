@@ -14,6 +14,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
@@ -105,14 +106,13 @@ private fun Scene.tonal(path: Path, color: Int) {
 /** A big flower of nested tonal shapes, set low so the clock has the top of the screen. */
 object M3Bloom : Style("m3_bloom", "Bloom", Category.MATERIAL) {
     override val autoPalettes = listOf("you")
-    override val usesDetail: Boolean get() = false
 
     override fun draw(s: Scene) {
         val t = Tonal(s)
         val cx = s.cx + s.f(-80f, 80f)
         val cy = s.h * s.f(0.6f, 0.7f)
         val r = s.w * s.f(0.5f, 0.62f)
-        val petals = s.i(6, 11)
+        val petals = s.i(6, 11) + ((s.density - 1f) * 3f).toInt()
         val rot = s.f(0f, TAU2)
         val o = s.i(0, 3)
         s.tonal(M3Shapes.flower(cx, cy, r, petals, s.f(0.2f, 0.3f), rot), t.pick(o, 30))
@@ -125,14 +125,13 @@ object M3Bloom : Style("m3_bloom", "Bloom", Category.MATERIAL) {
 /** Three cookies stacked and turned against each other, big to small. */
 object M3Cookies : Style("m3_cookies", "Cookies", Category.MATERIAL) {
     override val autoPalettes = listOf("you")
-    override val usesDetail: Boolean get() = false
 
     override fun draw(s: Scene) {
         val t = Tonal(s)
         val cx = s.cx + s.f(-60f, 60f)
         val cy = s.h * s.f(0.64f, 0.72f)
         val o = s.i(0, 3)
-        val lobes = s.i(6, 10)
+        val lobes = s.i(6, 10) + ((s.density - 1f) * 3f).toInt()
         val r = s.w * s.f(0.5f, 0.58f)
         s.tonal(M3Shapes.cookie(cx, cy, r, lobes, 0.2f, s.f(0f, TAU2)), t.pick(o, 30))
         s.tonal(M3Shapes.cookie(cx + s.f(-30f, 30f), cy - r * 0.05f, r * 0.68f, lobes + 2, 0.18f, s.f(0f, TAU2)), t.pick(o + 1, 55))
@@ -143,11 +142,10 @@ object M3Cookies : Style("m3_cookies", "Cookies", Category.MATERIAL) {
 /** Material's wavy progress indicator, as a wallpaper: thick rounded waves, each a different tone. */
 object M3Waves : Style("m3_waves", "Waves", Category.MATERIAL) {
     override val autoPalettes = listOf("you")
-    override val usesDetail: Boolean get() = false
 
     override fun draw(s: Scene) {
         val t = Tonal(s)
-        val thick = s.f(34f, 50f)
+        val thick = s.f(34f, 50f) / (0.6f + 0.4f * s.density)
         val gap = thick * s.f(1.9f, 2.3f)
         val top = s.h * s.f(0.34f, 0.42f)
         val o = s.i(0, 3)
@@ -173,12 +171,13 @@ object M3Waves : Style("m3_waves", "Waves", Category.MATERIAL) {
 /** A garden of the library's shapes at different sizes, clear of the clock. */
 object M3Garden : Style("m3_garden", "Shape Garden", Category.MATERIAL) {
     override val autoPalettes = listOf("you")
-    override val usesDetail: Boolean get() = false
 
     override fun draw(s: Scene) {
         val t = Tonal(s)
         val placed = ArrayList<FloatArray>()
-        val sizes = floatArrayOf(250f, 210f, 160f, 150f, 120f, 110f, 90f, 80f, 70f, 60f, 50f, 46f, 40f, 34f)
+        val base = floatArrayOf(250f, 210f, 160f, 150f, 120f, 110f, 90f, 80f, 70f, 60f, 50f, 46f, 40f, 34f)
+        val extra = FloatArray(s.count(14) * 2) { 24f + (it % 7) * 5f }
+        val sizes = if (s.density >= 1f) base + extra.take(((s.density - 1f) * 26f).toInt().coerceAtLeast(0)) else base.take(max(5, (base.size * s.density).toInt())).toFloatArray()
         for ((idx, r) in sizes.withIndex()) {
             var tries = 0
             while (tries++ < 90) {
@@ -206,11 +205,10 @@ object M3Garden : Style("m3_garden", "Shape Garden", Category.MATERIAL) {
 /** Rounded pills stacked on a slant, like a column of Material chips. */
 object M3Pills : Style("m3_pills", "Pills", Category.MATERIAL) {
     override val autoPalettes = listOf("you")
-    override val usesDetail: Boolean get() = false
 
     override fun draw(s: Scene) {
         val t = Tonal(s)
-        val thick = s.f(120f, 170f)
+        val thick = s.f(120f, 170f) / (0.7f + 0.3f * s.density)
         val gap = thick * 0.22f
         val o = s.i(0, 3)
         s.canvas.save()
@@ -234,7 +232,6 @@ object M3Pills : Style("m3_pills", "Pills", Category.MATERIAL) {
 /** Material's circular progress rings, thick and round-capped, stacked around one centre. */
 object M3Orbit : Style("m3_orbit", "Orbit", Category.MATERIAL) {
     override val autoPalettes = listOf("you")
-    override val usesDetail: Boolean get() = false
 
     override fun draw(s: Scene) {
         val t = Tonal(s)
@@ -242,7 +239,7 @@ object M3Orbit : Style("m3_orbit", "Orbit", Category.MATERIAL) {
         val cy = s.h * s.f(0.6f, 0.7f)
         val thick = s.f(38f, 56f)
         val gap = thick * s.f(0.55f, 0.8f)
-        val rings = s.i(5, 8)
+        val rings = s.i(5, 8) + ((s.density - 1f) * 4f).toInt()
         val o = s.i(0, 3)
         for (i in 0 until rings) {
             val r = thick * 1.6f + i * (thick + gap)
@@ -257,6 +254,183 @@ object M3Orbit : Style("m3_orbit", "Orbit", Category.MATERIAL) {
     }
 }
 
+/** Concentric arches, like a rainbow built from Material's tonal steps. */
+object M3Arches : Style("m3_arches", "Arches", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val cx = s.cx + s.f(-60f, 60f)
+        val baseY = s.h * s.f(0.78f, 0.9f)
+        val n = s.i(6, 9) + ((s.density - 1f) * 5f).toInt()
+        val outer = s.w * s.f(0.55f, 0.62f)
+        val o = s.i(0, 3)
+        for (i in 0 until n) {
+            val r = outer * (1f - i / n.toFloat())
+            val path = Path().apply {
+                moveTo(cx - r, baseY)
+                lineTo(cx - r, baseY - r)
+                arcTo(RectF(cx - r, baseY - 2f * r, cx + r, baseY), 180f, 180f)
+                lineTo(cx + r, baseY)
+                close()
+            }
+            s.tonal(path, t.pick(o + i, 30 + (i * 60 / n)))
+        }
+    }
+}
+
+/** A grid of dots whose size swells along a wave: the Material expressive dot field. */
+object M3Dots : Style("m3_dots", "Dot Field", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val step = 70f / sqrt(s.density.coerceIn(0.5f, 2f))
+        val kx = s.f(0.004f, 0.01f)
+        val ky = s.f(0.004f, 0.01f)
+        val ph = s.f(0f, TAU2)
+        val o = s.i(0, 3)
+        var y = s.h * 0.3f
+        var row = 0
+        while (y < s.h + step) {
+            var x = if (row % 2 == 0) 0f else step / 2f
+            while (x < s.w + step) {
+                val v = (sin(x * kx + ph) + sin(y * ky - ph * 0.7f) + 2f) / 4f
+                val r = step * 0.46f * v.pow(1.3f)
+                if (r > 2f) s.canvas.drawCircle(x, y, r, s.fill(t.pick(o + (v * 3f).toInt(), 40 + (v * 50f).toInt())))
+                x += step
+            }
+            y += step * 0.87f
+            row++
+        }
+    }
+}
+
+/** A sunburst of rounded rays: the Material burst shape, repeated and shrinking toward the centre. */
+object M3Sunburst : Style("m3_sunburst", "Sunburst", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val cx = s.cx
+        val cy = s.h * s.f(0.6f, 0.7f)
+        val layers = s.i(4, 6) + ((s.density - 1f) * 3f).toInt()
+        val r0 = s.w * s.f(0.55f, 0.65f)
+        val rays = s.i(10, 18)
+        val o = s.i(0, 3)
+        for (i in 0 until layers) {
+            val r = r0 * (1f - i / layers.toFloat() * 0.85f)
+            s.tonal(M3Shapes.burst(cx, cy, r, rays + i * 2, 0.22f - i * 0.02f, i * 0.25f), t.pick(o + i, 28 + i * 50 / layers))
+        }
+        s.tonal(M3Shapes.circle(cx, cy, r0 * 0.07f), t.pick(o, 92))
+    }
+}
+
+/** A grid of tiles morphing from circle to squircle to cookie to flower across the page. */
+object M3Morph : Style("m3_morph", "Morph Grid", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val cols = (4 + (s.density * 1.5f).toInt()).coerceIn(3, 9)
+        val cell = s.w / cols
+        val rowsN = ((s.h * 0.72f) / cell).toInt() + 1
+        val top = s.h * 0.28f
+        val o = s.i(0, 3)
+        for (gy in 0 until rowsN) for (gx in 0 until cols) {
+            val u = (gx / (cols - 1f) + gy / (rowsN - 1f).coerceAtLeast(1f)) / 2f
+            val cx = cell * (gx + 0.5f)
+            val cy = top + cell * (gy + 0.5f)
+            val r = cell * 0.43f
+            val shape = when ((u * 4f).toInt().coerceIn(0, 3)) {
+                0 -> M3Shapes.circle(cx, cy, r)
+                1 -> M3Shapes.squircle(cx, cy, r)
+                2 -> M3Shapes.cookie(cx, cy, r, 8, 0.16f, 0f)
+                else -> M3Shapes.flower(cx, cy, r, 6, 0.28f, 0f)
+            }
+            s.tonal(shape, t.pick(o + gx + gy, 34 + (u * 50f).toInt()))
+        }
+    }
+}
+
+/** Soft organic blobs overlapping in tonal layers, like the abstract art of Material illustrations. */
+object M3Blobs : Style("m3_blobs", "Blobs", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val n = s.count(7)
+        val o = s.i(0, 3)
+        for (i in 0 until n) {
+            val cx = s.f(s.w * 0.1f, s.w * 0.9f)
+            val cy = s.f(s.h * 0.34f, s.h * 0.95f)
+            val r = s.f(120f, 300f) / (0.8f + 0.2f * s.density)
+            val lobes = s.i(3, 6)
+            val rot = s.f(0f, TAU2)
+            val path = Path()
+            val ph = FloatArray(3) { s.f(0f, TAU2) }
+            for (k in 0..180) {
+                val a = TAU2 * k / 180f
+                val rr = r * (1f + 0.18f * sin(lobes * a + ph[0]) + 0.1f * sin((lobes + 2) * a + ph[1]) + 0.05f * sin((lobes + 5) * a + ph[2]))
+                val x = cx + cos(a + rot) * rr
+                val y = cy + sin(a + rot) * rr
+                if (k == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            path.close()
+            s.tonal(path, t.pick(o + i, 26 + s.i(0, 5) * 12))
+        }
+    }
+}
+
+/** Thick rounded ribbons sweeping across the page in different tones, the way Material backgrounds flow. */
+object M3Ribbons : Style("m3_ribbons", "Flow", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val n = s.count(5) + 1
+        val thick = s.f(90f, 160f) / (0.75f + 0.25f * s.density)
+        val o = s.i(0, 3)
+        for (i in 0 until n) {
+            val y0 = s.h * (0.34f + 0.62f * i / n)
+            val amp = s.f(60f, 190f)
+            val k = s.f(0.003f, 0.007f)
+            val ph = s.f(0f, TAU2)
+            val tilt = s.f(-0.25f, 0.25f)
+            val path = Path()
+            var x = -thick
+            while (x <= s.w + thick) {
+                val y = y0 + sin(x * k + ph) * amp + x * tilt
+                if (x == -thick) path.moveTo(x, y) else path.lineTo(x, y)
+                x += 8f
+            }
+            s.canvas.drawPath(path, s.stroke(t.pick(o + i, 32 + (i * 53 / n)), thick))
+        }
+    }
+}
+
+/** A tall stack of squircles that shrink and rotate, like a Material component exploded into layers. */
+object M3Stack : Style("m3_stack", "Stack", Category.MATERIAL) {
+    override val autoPalettes = listOf("you")
+
+    override fun draw(s: Scene) {
+        val t = Tonal(s)
+        val n = s.i(6, 9) + ((s.density - 1f) * 5f).toInt()
+        val cx = s.cx
+        val cy = s.h * s.f(0.6f, 0.68f)
+        val r0 = s.w * s.f(0.48f, 0.56f)
+        val twist = s.f(0.12f, 0.3f)
+        val o = s.i(0, 3)
+        for (i in 0 until n) {
+            val k = i / n.toFloat()
+            s.tonal(M3Shapes.squircle(cx + sin(i * 0.7f) * 24f, cy - i * 14f, r0 * (1f - k * 0.88f), i * twist, 3.4f + k * 2f), t.pick(o + i, 26 + (k * 62f).toInt()))
+        }
+    }
+}
+
 object MaterialYou {
-    val styles: List<Style> = listOf(M3Bloom, M3Cookies, M3Waves, M3Garden, M3Pills, M3Orbit)
+    val styles: List<Style> = listOf(
+        M3Bloom, M3Cookies, M3Waves, M3Garden, M3Pills, M3Orbit,
+        M3Arches, M3Dots, M3Sunburst, M3Morph, M3Blobs, M3Ribbons, M3Stack,
+    )
 }

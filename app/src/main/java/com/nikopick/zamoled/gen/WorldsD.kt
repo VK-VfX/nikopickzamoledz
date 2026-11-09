@@ -179,7 +179,7 @@ object ErrorWindows : Style("error_windows", "Error.exe", Category.GLITCH) {
 // PIXEL: 8-bit worlds
 // =====================================================================
 
-private class PixelPen(val s: Scene, val px: Float) {
+internal class PixelPen(val s: Scene, val px: Float) {
     fun cell(gx: Int, gy: Int, color: Int, alpha: Int = 255) {
         s.canvas.drawRect(gx * px, gy * px, (gx + 1) * px - 0.6f, (gy + 1) * px - 0.6f, s.fill(color, alpha))
     }
@@ -299,6 +299,13 @@ object PixelQuest : Style("pixel_quest", "Pixel Quest", Category.PIXEL) {
         "3333333333",
     )
     private val heart = arrayOf("0110110", "1111111", "1111111", "0111110", "0011100", "0001000")
+    private val bat = arrayOf("10000001", "11011011", "11111111", "01111110", "00100100")
+    private val skeleton = arrayOf(
+        "0011100", "0111110", "0101010", "0011100", "0001000",
+        "0111110", "0001000", "0011100", "0010100", "0110110",
+    )
+    private val mushroom = arrayOf("0022200", "0222220", "2232322", "2222222", "0011100", "0011100")
+    private val bird = arrayOf("1000001", "0100010", "0011100")
 
     override fun draw(s: Scene) {
         val pp = PixelPen(s, 12f)
@@ -310,7 +317,12 @@ object PixelQuest : Style("pixel_quest", "Pixel Quest", Category.PIXEL) {
             val top = (rows * 0.6f - (1f - abs(s.noise.fbm(x * 0.05f, 2f))) * rows * 0.2f).toInt()
             pp.cell(x, top, darken(s.color(2), 0.3f))
         }
-        repeat(s.i(2, 5)) {
+        // A nearer, darker range of hills in front of the mountains.
+        for (x in 0 until cols) {
+            val top = (rows * 0.7f - (1f - abs(s.noise.fbm(x * 0.035f, 9f))) * rows * 0.1f).toInt()
+            for (y in top until (rows * 0.8f).toInt()) pp.cell(x, y, darken(s.color(1), 0.78f))
+        }
+        repeat(s.count(4) + 1) {
             val cgx = s.i(2, cols - 10)
             val cgy = s.i(4, rows / 3)
             for (dx in 0 until 8) for (dy in 0 until 3) if (!(dy == 0 && (dx == 0 || dx == 7))) pp.cell(cgx + dx, cgy + dy, Color.WHITE, 150)
@@ -322,6 +334,38 @@ object PixelQuest : Style("pixel_quest", "Pixel Quest", Category.PIXEL) {
             pp.cell(x, ground, grass)
             for (y in ground + 1 until rows) if ((x * 3 + y * 5) % 11 == 0) pp.cell(x, y, Color.rgb(150, 100, 60))
         }
+        // Underground: stones, gold ore and buried bones, a little more of each with Detail.
+        repeat(s.count(44)) {
+            val ux = s.i(0, cols - 2); val uy = s.i(ground + 3, rows - 2)
+            for (dx in 0..1) for (dy in 0..1) pp.cell(ux + dx, uy + dy, if (dx + dy == 0) Color.rgb(170, 165, 160) else Color.rgb(105, 100, 98))
+        }
+        repeat(s.count(16)) {
+            val ux = s.i(0, cols - 2); val uy = s.i(ground + 4, rows - 2)
+            pp.cell(ux, uy, Color.rgb(255, 215, 70)); pp.cell(ux + 1, uy + 1, Color.rgb(255, 215, 70)); pp.cell(ux + 1, uy, Color.rgb(200, 150, 40))
+        }
+        repeat(s.count(9)) {
+            val ux = s.i(0, cols - 4); val uy = s.i(ground + 5, rows - 2)
+            for (dx in 0..3) pp.cell(ux + dx, uy, Color.rgb(235, 232, 220)); pp.cell(ux, uy - 1, Color.rgb(235, 232, 220)); pp.cell(ux + 3, uy + 1, Color.rgb(235, 232, 220))
+        }
+        // Trees, bushes and flowers along the ground; more of them as Detail goes up.
+        val leaf = mix(s.color(2), Color.rgb(60, 170, 90), 0.6f)
+        repeat(s.count(7)) {
+            val tx = s.i(3, cols - 3)
+            for (y in 0 until 5) pp.cell(tx, ground - 1 - y, Color.rgb(120, 80, 50))
+            pp.disc(tx, ground - 8, 4, leaf)
+            pp.disc(tx - 1, ground - 9, 2, lighten(leaf, 0.25f))
+        }
+        repeat(s.count(10)) {
+            val bx = s.i(2, cols - 2)
+            for (dx in -2..2) for (dy in 0..(2 - abs(dx))) pp.cell(bx + dx, ground - 1 - dy, darken(leaf, 0.25f))
+        }
+        repeat(s.count(26)) {
+            val fx = s.i(0, cols)
+            pp.cell(fx, ground - 1, if (s.chance(0.5f)) Color.rgb(255, 120, 160) else Color.rgb(255, 230, 120))
+            pp.cell(fx, ground - 2, Color.rgb(90, 190, 100))
+        }
+        // Birds crossing the sky.
+        repeat(s.count(3)) { pp.sprite(bird, s.i(2, cols - 8), s.i(3, rows / 3), mapOf('1' to Color.WHITE)) }
         // Floating platforms with coins.
         repeat(s.i(2, 4)) {
             val pgx = s.i(4, cols - 14)
@@ -332,6 +376,15 @@ object PixelQuest : Style("pixel_quest", "Pixel Quest", Category.PIXEL) {
                 pp.cell(coinX, pgy - 3, Color.rgb(255, 215, 70)); pp.cell(coinX, pgy - 4, Color.rgb(255, 215, 70))
                 s.softGlow((coinX + 0.5f) * pp.px, (pgy - 3) * pp.px, 24f, Color.rgb(255, 215, 70), 90)
             }
+        }
+        // Things that want the hero dead, and things that help.
+        repeat(s.count(3)) { pp.sprite(bat, s.i(4, cols - 10), s.i((rows * 0.3f).toInt(), (rows * 0.55f).toInt()), mapOf('1' to Color.rgb(140, 90, 200))) }
+        pp.sprite(skeleton, (cols * 0.45f).toInt(), ground - 10, mapOf('1' to Color.rgb(235, 235, 225)))
+        pp.sprite(mushroom, (cols * 0.1f).toInt(), ground - 6, mapOf('2' to Color.rgb(230, 60, 60), '3' to Color.WHITE, '1' to Color.rgb(240, 225, 200)))
+        repeat(s.count(3)) {
+            val qx = s.i(5, cols - 12); val qy = s.i((rows * 0.35f).toInt(), (rows * 0.5f).toInt())
+            for (dx in 0 until 5) for (dy in 0 until 5) pp.cell(qx + dx, qy + dy, if (dx == 0 || dy == 0 || dx == 4 || dy == 4) Color.rgb(160, 100, 30) else Color.rgb(255, 190, 50))
+            pp.cell(qx + 2, qy + 1, Color.rgb(120, 70, 20)); pp.cell(qx + 3, qy + 1, Color.rgb(120, 70, 20)); pp.cell(qx + 3, qy + 2, Color.rgb(120, 70, 20)); pp.cell(qx + 2, qy + 3, Color.rgb(120, 70, 20))
         }
         val colors = mapOf(
             '1' to Color.rgb(60, 40, 30), '2' to Color.rgb(250, 200, 160), '3' to Color.BLACK,
@@ -344,6 +397,8 @@ object PixelQuest : Style("pixel_quest", "Pixel Quest", Category.PIXEL) {
         for (k in 0 until 3) pp.sprite(heart, 2 + k * 9, 6, mapOf('1' to Color.rgb(255, 70, 90)))
         s.canvas.drawText("SCORE 004200", s.w - 40f, 6 * pp.px + 60f, s.textPaint(40f, Color.WHITE, Typeface.MONOSPACE, Paint.Align.RIGHT))
         s.canvas.drawText("✦ x 42", s.w - 40f, 6 * pp.px + 110f, s.textPaint(36f, Color.rgb(255, 215, 70), Typeface.MONOSPACE, Paint.Align.RIGHT))
+        s.canvas.drawText("WORLD 1-4", 40f, 12 * pp.px + 50f, s.textPaint(40f, Color.WHITE, Typeface.MONOSPACE, Paint.Align.LEFT))
+        s.canvas.drawText("TIME 318", 40f, 12 * pp.px + 100f, s.textPaint(36f, Color.rgb(200, 200, 220), Typeface.MONOSPACE, Paint.Align.LEFT))
         s.canvas.drawText("PRESS START", s.cx, s.h * 0.93f, s.textPaint(44f, Color.WHITE, Typeface.MONOSPACE))
     }
 }
@@ -423,7 +478,7 @@ object Candles : Style("candles", "Candlelight", Category.LIGHT) {
 
     override fun draw(s: Scene) {
         val table = s.h * s.f(0.72f, 0.78f)
-        val n = s.i(5, 8)
+        val n = s.i(5, 8) + s.count(5) - 5
         val placed = ArrayList<FloatArray>()
         repeat(n) {
             val x = s.cx + s.gauss() * 280f

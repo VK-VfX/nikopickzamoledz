@@ -36,7 +36,7 @@ object LoneTree : Style("lone_tree", "Lone Tree", Category.MINIMAL) {
         s.canvas.drawCircle(sx, sy, sr, s.fill(sunColor, 235))
 
         // Birds crossing the sun.
-        repeat(s.i(3, 7)) {
+        repeat(s.i(3, 7) + s.count(4) - 4) {
             val bx = sx + s.f(-sr * 1.4f, sr * 1.2f)
             val by = sy + s.f(-sr * 0.9f, sr * 0.6f)
             val bw = s.f(8f, 16f)
@@ -103,7 +103,7 @@ object LoneTree : Style("lone_tree", "Lone Tree", Category.MINIMAL) {
         p.quadTo(x + cos(a + 0.3f) * len * 0.5f, y + sin(a + 0.3f) * len * 0.5f, ex, ey)
         s.canvas.drawPath(p, s.stroke(Color.WHITE, width, 235))
         if (depth == 0 || len < 14f) {
-            repeat(s.i(4, 9)) {
+            repeat((s.i(4, 9) * s.density.coerceIn(0.5f, 2f)).toInt().coerceAtLeast(2)) {
                 val r = s.f(3f, 8f)
                 s.dot(ex + s.f(-16f, 16f), ey + s.f(-14f, 12f), r, if (s.chance(0.8f)) blossom else Color.WHITE, s.i(150, 250))
             }
@@ -125,14 +125,14 @@ object KoiPond : Style("koi_pond", "Koi Pond", Category.MINIMAL) {
         val cx = s.cx
         val cy = s.h * s.f(0.42f, 0.52f)
         // Ripples.
-        repeat(s.i(3, 6)) {
+        repeat(s.i(3, 6) + s.count(4) - 4) {
             val rx = s.f(0f, s.w)
             val ry = s.f(0f, s.h)
             for (k in 1..5) s.canvas.drawCircle(rx, ry, k * s.f(22f, 30f), s.stroke(Color.WHITE, 1.2f, 70 - k * 10))
         }
         // Lily pads and a lotus.
         val padColor = darken(mix(s.color(2), Color.rgb(60, 160, 90), 0.6f), 0.35f)
-        repeat(s.i(4, 8)) {
+        repeat(s.i(4, 8) + s.count(5) - 5) {
             val px = s.f(0f, s.w)
             val py = s.f(0f, s.h)
             if (abs(py - cy) < 360f && abs(px - cx) < 360f) return@repeat
@@ -412,7 +412,7 @@ object ArtDecoTower : Style("art_deco", "Art Deco", Category.GEOMETRIC) {
             }
             // Lit windows.
             repeat((half / 18f).toInt()) {
-                if (s.chance(0.3f)) {
+                if (s.chance(0.3f * s.density.coerceIn(0.4f, 1.8f))) {
                     val wx = rect.left + 14f + 18f * s.i(0, (half * 2f / 18f).toInt().coerceAtLeast(1))
                     val wy = s.f(rect.top + 16f, rect.bottom - 20f)
                     s.canvas.drawRect(wx - 3f, wy, wx + 3f, wy + 12f, s.fill(lighten(gold, 0.4f), 230))

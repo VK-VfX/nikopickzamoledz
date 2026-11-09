@@ -4,28 +4,27 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **54 wallpapers across 14 worlds**, each with its own art direction
+- **63 wallpapers across 13 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
   | Doodle    | Sticker Bomb (die-cut painted stickers slapped over one another), Gouache (loose painted shapes with spilled paint), Chalk (chalk on a blackboard, with coloured shading), Space Doodles, Doodle Bomb (packed sketchbook monsters), Gatti and Gatti Colour (painted cats with real coats) |
-  | For Pixel | Material 3 Expressive on pure black: Bloom, Cookies, Waves (a wavy progress indicator as a wallpaper), Shape Garden, Pills, Orbit. They use your phone's own Material You colours |
+  | For Pixel | Material 3 Expressive on pure black, in your phone's own Material You colours. Shapes (Bloom, Cookies, Shape Garden, Morph Grid, Blobs), Flow (Waves, Flow, Orbit) and Pattern (Pills, Dot Field, Arches, Sunburst, Stack) |
   | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
   | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
   | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
-  | Nature    | Aurora, Howling Woods (wolf over misty pines), Mountain Lake (mirrored peaks and a canoe), Night Bloom (monstera, ferns, glowing flowers) |
+  | Nature    | Howling Wolf (a wolf on a ledge against the moon, a pack on the far ridge), Northern Lights (curtains of rays over a lake), Moonlit Peaks (layered ranges), Starry Pines (Milky Way over a pine forest), Moon Path (the moon on open water) |
   | Abstract  | Starry Swirl (a Van Gogh homage), Liquid Marble, Ink Smoke |
-  | Neon      | Neon Sign on a brick wall, Neon Alley (Tokyo signs and wet streets), Synthwave |
-  | Audio     | Vinyl turntable, Boombox, Studio Mic with an ON AIR sign |
-  | Mystic    | The Moon tarot card, All-Seeing Eye, Crystal Ball, Moon Phases |
-  | City      | Rooftops (water tower, string lights, a cat on the ledge), Skyline, Neon Rain, Night Highway |
-  | Glitch    | Aesthetic (glitched marble bust), Error.exe windows, Data Rain |
-  | Pixel     | Pixel Castle, Pixel Quest (hero, slime, chest, HUD), Pixel Space, Pixel Peaks |
+  | Neon      | Neon Tunnel (rings rushing to a point), Neon Ribbons (twisting strands of light), Neon Storm (branching lightning), Neon Sign, Synthwave |
+  | Mystic    | Arcane Circle (runes, star polygon, sigil), Zodiac Wheel (astrolabe of twelve constellations), Tarot (The Moon, The Star, The Sun in gold line), Crystal Cluster, Lunar Cycle |
+  | City      | Rooftops (water tower, string lights, a cat on the ledge), Skyline |
+  | Glitch    | Data Rain (six looks: kana, binary, hex, depth, pixel snow, cascade), Dimension Split (comic-book halftone, a starburst and misregistered print), Neon Dystopia (a cyberpunk city with failing billboards, a HUD and scanlines) |
+  | Pixel Bits | Pixel Bits: Pixel Castle, Pixel Quest (hero, enemies, power-ups, underground), Pixel Space (dithered nebula, ringed planet, ships), Pixel City, Pixel Peaks |
   | Light     | Lantern Festival, Candlelight, Jellyfish, Fireflies |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
 - **Sub-categories.** Each world is split into sub-categories, shown as a second row of chips once you pick one, so you narrow the feed instead of scrolling it. Doodle breaks into Classic, Comic, Cats and Space; elsewhere each style is its own.
-- **Detail slider.** Turn the density of stars, doodles, lines and particles up or down.
+- **Detail slider.** Turn the density of stars, doodles, lines, windows and falling code up or down. It works on every wallpaper except Tarot, a fixed composition, where it is hidden.
 - **Arrangements (Doodle world).** Lay the doodles out as a Grid, Rings, Spiral, Wave, Mosaic, Burst, Diagonal, Frame (a border that leaves the middle clear for the clock), Shape (packed into a heart, star, moon or circle) or a loose Scatter. Auto picks one from the seed.
 - **Save** as a lossless PNG at screen size, QHD+ (1440×3200) or 4K (2160×3840). Files go to `Pictures/Zamoled`, and no storage permission is needed.
 - **Apply** to the home screen, lock screen or both.

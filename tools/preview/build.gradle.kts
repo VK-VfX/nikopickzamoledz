@@ -38,6 +38,7 @@ tasks.test {
     systemProperty("preview.palette", System.getProperty("preview.palette") ?: "auto")
     systemProperty("preview.layout", System.getProperty("preview.layout") ?: "auto")
     systemProperty("preview.width", System.getProperty("preview.width") ?: "540")
+    systemProperty("preview.density", System.getProperty("preview.density") ?: "1")
     testLogging { showStandardStreams = true }
     maxHeapSize = "3g"
     systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
