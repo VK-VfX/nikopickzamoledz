@@ -246,6 +246,9 @@ class Scene(
 abstract class Style(val id: String, val name: String, val category: Category) {
     /** Palettes "Auto" picks from for this style; null means any palette. */
     open val autoPalettes: List<String>? = null
+
+    /** False for styles that are finished pictures: palette and detail do nothing to them. */
+    open val usesPalette: Boolean get() = true
     abstract fun draw(s: Scene)
 }
 
@@ -294,17 +297,14 @@ object Styles {
         DoodleScatter, DoodlePattern, DoodleSpotlight, SpaceDoodles, ComicPop, DoodleStickers, Gatti, GattiSketch,
         LoneTree, KoiPond, MoonFisher,
         CrystalCave, ArtDecoTower, FloatingIsle,
-        AstronautDrift, RingedWorld, BlackHole, Eclipse,
-        Aurora, MoonlitForest, MountainLake, NightBloom,
-        StarrySwirl, LiquidMarble, InkSmoke,
         NeonSign, NeonAlley, Synthwave,
         Vinyl, Boombox, StudioMic,
         TarotMoon, AllSeeingEye, CrystalBall, MoonPhases,
-        Rooftops, Skyline, NightHighway,
+        Rooftops, Skyline,
         GlitchBust, ErrorWindows, DataRain,
         PixelCastle, PixelQuest, PixelSpace, PixelLandscape,
         LanternFestival, Candles, Jellyfish, Fireflies,
-    )
+    ) + ArtStyles.styles
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(
@@ -313,6 +313,8 @@ object Styles {
         SpectrumBars, CircularSpectrum, Oscilloscope, FlowerOfLife, Metatron,
         GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails, NeonRain,
         GothMoonQueen, GothRavenLady, GothWanderer,
+        AstronautDrift, RingedWorld, BlackHole, Eclipse, Aurora, MoonlitForest, MountainLake, NightBloom,
+        StarrySwirl, LiquidMarble, InkSmoke, NightHighway,
     )
 
     /**

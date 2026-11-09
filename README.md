@@ -4,22 +4,22 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **49 wallpapers across 13 worlds**, each with its own art direction
+- **47 wallpapers across 13 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
   | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Colour (painted cats with real coats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
   | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
   | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
-  | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
-  | Nature    | Aurora, Howling Woods (wolf over misty pines), Mountain Lake (mirrored peaks and a canoe), Night Bloom (monstera, ferns, glowing flowers) |
-  | Abstract  | Starry Swirl (a Van Gogh homage), Liquid Marble, Ink Smoke |
+  | Space     | Pictures: Nebula, Galaxy, Gas Giant (with rings), Moon |
+  | Nature    | Pictures: Aurora, Milky Way, Moonlit Lake |
+  | Abstract  | Picture: Liquid Ink |
   | Neon      | Neon Sign on a brick wall, Neon Alley (Tokyo signs and wet streets), Synthwave |
   | Audio     | Vinyl turntable, Boombox, Studio Mic with an ON AIR sign |
   | Mystic    | The Moon tarot card, All-Seeing Eye, Crystal Ball, Moon Phases |
-  | City      | Rooftops (water tower, string lights, a cat on the ledge), Skyline, Neon Rain, Night Highway |
+  | City      | Rooftops, Skyline; picture: Night Highway (a long exposure) |
   | Glitch    | Aesthetic (glitched marble bust), Error.exe windows, Data Rain |
   | Pixel     | Pixel Castle, Pixel Quest (hero, slime, chest, HUD), Pixel Space, Pixel Peaks |
-  | Light     | Lantern Festival, Candlelight, Jellyfish, Fireflies |
+  | Light     | Pictures: Bokeh; drawn: Lantern Festival, Candlelight, Jellyfish, Fireflies |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
@@ -67,6 +67,10 @@ You need Android Studio (or the Android SDK with platform 35) and JDK 17.
 ```
 
 Requires Android 10 (API 29) or newer.
+
+## Pictures and drawings
+
+Two kinds of wallpaper live side by side. *Drawn* ones are generated on your phone from a seed. *Pictures* (Space, Nature, Liquid Ink, Bokeh and the Night Highway) are real rendered images: `tools/art` computes them offline with a physically motivated renderer (spectral noise, domain warping, volumetric light, sphere and ring shading, diffraction spikes, bloom, filmic tone mapping), so they carry detail a phone could not compute live. They are bundled as small WebP files in `app/src/main/assets/art/` (about 60 KB each) and the seed picks the picture, mirrors it and crops it, so a handful of pictures gives many wallpapers. Palette and detail do not apply to pictures, so the editor hides them. See `tools/art/build_all.py` to re-render.
 
 ## How it works
 

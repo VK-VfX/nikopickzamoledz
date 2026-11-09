@@ -419,13 +419,16 @@ private fun CustomizePanel(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 14.dp),
     ) {
-        SectionLabel("Palette")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-            item(key = "auto") {
-                PaletteSwatch(null, selected = spec.paletteId == "auto") { onPalette("auto") }
-            }
-            items(Palettes.choices, key = { it.id }) { p ->
-                PaletteSwatch(p, selected = spec.paletteId == p.id) { onPalette(p.id) }
+        // Pictures are finished images, so palette and detail only apply to the drawn styles.
+        if (spec.style.usesPalette) {
+            SectionLabel("Palette")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                item(key = "auto") {
+                    PaletteSwatch(null, selected = spec.paletteId == "auto") { onPalette("auto") }
+                }
+                items(Palettes.choices, key = { it.id }) { p ->
+                    PaletteSwatch(p, selected = spec.paletteId == p.id) { onPalette(p.id) }
+                }
             }
         }
         // Arrangement only changes styles that lay doodles out across the page.
@@ -448,19 +451,21 @@ private fun CustomizePanel(
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Detail", Modifier.weight(1f))
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-                Text(
-                    "%.1f×".format(detail),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                )
+        if (spec.style.usesPalette) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SectionLabel("Detail", Modifier.weight(1f))
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Text(
+                        "%.1f×".format(detail),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                }
             }
+            Slider(value = detail, onValueChange = onDetail, onValueChangeFinished = onDetailDone, valueRange = 0.4f..1.8f)
         }
-        Slider(value = detail, onValueChange = onDetail, onValueChangeFinished = onDetailDone, valueRange = 0.4f..1.8f)
         SectionLabel("Save resolution")
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             Resolution.entries.forEachIndexed { index, res ->
@@ -538,7 +543,7 @@ private fun TopControls(spec: WallpaperSpec, favorite: Boolean, onBack: () -> Un
                 Column {
                     Text(spec.style.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
                     Text(
-                        "${spec.style.category.label} · ${spec.palette.name}",
+                        if (spec.style.usesPalette) "${spec.style.category.label} · ${spec.palette.name}" else spec.style.category.label,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
