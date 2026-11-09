@@ -30,6 +30,7 @@ fun ZamoledApp() {
     val home = rememberHomeState()
     var openKey by rememberSaveable { mutableStateOf<String?>(null) }
 
+    ProvideShimmer {
     SharedTransitionLayout(Modifier.fillMaxSize().background(Color.Black)) {
         AnimatedContent(
             targetState = openKey,
@@ -48,5 +49,6 @@ fun ZamoledApp() {
                 }
             }
         }
+    }
     }
 }

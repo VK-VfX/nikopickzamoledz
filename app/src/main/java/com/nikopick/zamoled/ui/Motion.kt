@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -76,36 +77,32 @@ fun Modifier.enterOnce(key: String, index: Int): Modifier {
 
 /** Animated loading placeholder. */
 @Composable
-fun Modifier.shimmer(): Modifier {
+val LocalShimmer = androidx.compose.runtime.compositionLocalOf<androidx.compose.runtime.State<Float>?> { null }
+
+/**
+ * Placeholder shimmer. There is one clock for the whole screen, read only while drawing, so
+ * thirty loading cards cost one animation and no recomposition rather than thirty of each.
+ */
+@Composable
+fun ProvideShimmer(content: @Composable () -> Unit) {
     val transition = rememberInfiniteTransition(label = "shimmer")
-    val x by transition.animateFloat(
+    val x = transition.animateFloat(
         initialValue = -500f,
         targetValue = 1300f,
         animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing)),
         label = "shimmerX",
     )
-    val base = MaterialTheme.colorScheme.surfaceContainer
-    val highlight = MaterialTheme.colorScheme.surfaceContainerHighest
-    return background(Brush.linearGradient(listOf(base, highlight, base), start = Offset(x, 0f), end = Offset(x + 500f, 500f)))
+    androidx.compose.runtime.CompositionLocalProvider(LocalShimmer provides x, content = content)
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-val LocalSharedScope = staticCompositionLocalOf<SharedTransitionScope?> { null }
-val LocalNavAnimScope = staticCompositionLocalOf<AnimatedVisibilityScope?> { null }
-
-/** Links a wallpaper thumbnail to the full-screen preview so it flies between screens. */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun Modifier.sharedWallpaper(key: String, shape: Shape): Modifier {
-    val shared = LocalSharedScope.current ?: return this
-    val anim = LocalNavAnimScope.current ?: return this
-    val base = this
-    return with(shared) {
-        base.sharedElement(
-            state = rememberSharedContentState(key = "wallpaper-$key"),
-            animatedVisibilityScope = anim,
-            boundsTransform = { _, _ -> spring(dampingRatio = 0.85f, stiffness = 300f) },
-            clipInOverlayDuringTransition = OverlayClip(shape),
-        )
+fun Modifier.shimmer(): Modifier {
+    val clock = LocalShimmer.current
+    val base = MaterialTheme.colorScheme.surfaceContainer
+    val highlight = MaterialTheme.colorScheme.surfaceContainerHighest
+    val colors = remember(base, highlight) { listOf(base, highlight, base) }
+    return drawBehind {
+        val x = clock?.value ?: 0f
+        drawRect(Brush.linearGradient(colors, start = Offset(x, 0f), end = Offset(x + 500f, 500f)))
     }
 }

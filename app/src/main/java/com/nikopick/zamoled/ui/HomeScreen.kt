@@ -118,8 +118,8 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 private const val FILTER_ALL = "all"
-private const val PAGE = 30
-private const val MAX_PAGES = 20
+/** The feed is finite: this many wallpapers per batch, and Shuffle brings a fresh batch. */
+private const val FEED_SIZE = 24
 
 enum class HomeTab(val label: String, val selectedIcon: ImageVector, val icon: ImageVector) {
     EXPLORE("Explore", Icons.Rounded.Explore, Icons.Outlined.Explore),
@@ -138,7 +138,6 @@ class HomeState(
     var filter by mutableStateOf(FILTER_ALL)
     var subcategory by mutableStateOf<String?>(null)
     var batch by mutableLongStateOf(System.currentTimeMillis())
-    var pages by mutableIntStateOf(1)
     var update by mutableStateOf<UpdateInfo?>(null)
 }
 
@@ -152,14 +151,18 @@ fun rememberHomeState(): HomeState {
     return state
 }
 
-private fun buildSpecs(filter: String, subcategory: String?, batch: Long, count: Int): List<WallpaperSpec> {
+/**
+ * One batch of wallpapers. With no filter every card is a different style, so the feed never
+ * shows the same world twice in a row; inside a category the styles repeat only as often as
+ * they have to to fill the batch.
+ */
+private fun buildSpecs(filter: String, subcategory: String?, batch: Long): List<WallpaperSpec> {
     val styles = if (filter == FILTER_ALL) Styles.all else Styles.of(Category.valueOf(filter), subcategory)
     if (styles.isEmpty()) return emptyList()
     val rnd = Random(batch xor filter.hashCode().toLong() xor subcategory.hashCode().toLong())
-    return List(count) { i ->
-        val style = if (filter == FILTER_ALL) styles[rnd.nextInt(styles.size)] else styles[i % styles.size]
-        WallpaperSpec(style.id, rnd.nextLong())
-    }
+    val order = styles.shuffled(rnd)
+    val count = if (filter == FILTER_ALL) minOf(FEED_SIZE, order.size) else minOf(FEED_SIZE, maxOf(order.size * 3, 6))
+    return List(count) { i -> WallpaperSpec(order[i % order.size].id, rnd.nextLong()) }
 }
 
 private fun featuredSpecs(batch: Long): List<WallpaperSpec> {
@@ -235,7 +238,6 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
                 HomeTab.CATEGORIES -> CategoriesTab(state) { category ->
                     state.filter = category.name
                     state.subcategory = null
-                    state.pages = 1
                     state.tab = HomeTab.EXPLORE
                 }
                 HomeTab.FAVORITES -> FavoritesTab(state, favorites, onOpen)
@@ -249,21 +251,15 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
 @Composable
 private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSpec) -> Unit) {
     val scope = rememberCoroutineScope()
-    val specs = remember(state.filter, state.subcategory, state.batch, state.pages) {
-        buildSpecs(state.filter, state.subcategory, state.batch, state.pages * PAGE)
+    val specs = remember(state.filter, state.subcategory, state.batch) {
+        buildSpecs(state.filter, state.subcategory, state.batch)
     }
     val featured = remember(state.batch) { featuredSpecs(state.batch) }
     val showFeatured = state.filter == FILTER_ALL
     val category = if (state.filter == FILTER_ALL) null else Category.valueOf(state.filter)
     val subcategories = remember(state.filter) { category?.let { Styles.subcategories(it) }.orEmpty() }
     val showSubs = subcategories.size > 1
-    val headerCount = (if (showFeatured) 3 else 2) + (if (showSubs) 1 else 0)
     val grid = state.exploreGrid
-
-    LaunchedEffect(specs.size, headerCount) {
-        snapshotFlow { grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
-            .collect { last -> if (last > headerCount + specs.size - 12 && state.pages < MAX_PAGES) state.pages++ }
-    }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(112.dp),
@@ -275,10 +271,7 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
     ) {
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                HeroHeader(onShuffle = {
-                    state.batch = System.currentTimeMillis()
-                    state.pages = 1
-                })
+                HeroHeader(onShuffle = { state.batch = System.currentTimeMillis() })
                 UpdateBanner(state.update, onDismiss = { state.update = null })
             }
         }
@@ -292,7 +285,6 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
                 if (f != state.filter) {
                     state.filter = f
                     state.subcategory = null
-                    state.pages = 1
                     scope.launch { if (grid.firstVisibleItemIndex > 1) grid.animateScrollToItem(if (f == FILTER_ALL) 2 else 1) }
                 }
             }
@@ -302,8 +294,7 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
                 SubFilterRow(category, subcategories, state.subcategory) { s ->
                     if (s != state.subcategory) {
                         state.subcategory = s
-                        state.pages = 1
-                    }
+                        }
                 }
             }
         }
@@ -315,6 +306,33 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
                 onClick = { onOpen(spec) },
                 modifier = Modifier.animateItem(),
             )
+        }
+        item(key = "feed-end", span = { GridItemSpan(maxLineSpan) }) {
+            FeedEnd(count = specs.size) {
+                state.batch = System.currentTimeMillis()
+                scope.launch { grid.animateScrollToItem(0) }
+            }
+        }
+    }
+}
+
+/** The end of a batch: shuffle for a fresh one instead of scrolling for more. */
+@Composable
+private fun FeedEnd(count: Int, onShuffle: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp),
+    ) {
+        Text(
+            "That's $count. Want a different set?",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = onShuffle) {
+            Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Shuffle")
         }
     }
 }
@@ -472,7 +490,7 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
         Box(Modifier.fillMaxSize().sharedWallpaper(spec.key, shape)) {
             Crossfade(targetState = bitmap, label = "featured") { b ->
                 if (b != null) {
-                    Image(b.asImageBitmap(), contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Image(remember(b) { b.asImageBitmap() }, contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
                     Box(Modifier.fillMaxSize().shimmer())
                 }
@@ -600,7 +618,7 @@ fun WallpaperCard(
         Box(Modifier.fillMaxSize().sharedWallpaper(spec.key, shape)) {
             Crossfade(targetState = bitmap, label = "thumb") { b ->
                 if (b != null) {
-                    Image(b.asImageBitmap(), contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Image(remember(b) { b.asImageBitmap() }, contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
                     Box(Modifier.fillMaxSize().shimmer())
                 }
@@ -695,7 +713,7 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
             Crossfade(targetState = bitmap, label = "catThumb") { b ->
                 if (b != null) {
                     Image(
-                        b.asImageBitmap(),
+                        remember(b) { b.asImageBitmap() },
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.75f },

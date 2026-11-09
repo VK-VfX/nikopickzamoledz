@@ -35,8 +35,6 @@ object Palettes {
         Palette("violet", "Violet", intArrayOf(c(0xFFB388FF), c(0xFF7C4DFF), c(0xFFEA80FC))),
         Palette("gold", "Gold", intArrayOf(c(0xFFFFD740), c(0xFFFFC107), c(0xFFFFE0B2))),
         Palette("candy", "Candy", intArrayOf(c(0xFFF47C7C), c(0xFFFFC97A), c(0xFF7FD8A8), c(0xFFC98BD6), c(0xFF9ED9E0))),
-        Palette("sacred", "Sacred Gold", intArrayOf(c(0xFFFFD27A), c(0xFFE8A33D), c(0xFFB02030), c(0xFFF6E8C8))),
-        Palette("divine", "Divine Light", intArrayOf(c(0xFFFFF3D0), c(0xFFFFD27A), c(0xFF8FC7FF), c(0xFFBFA6FF))),
         Palette("graffiti", "Graffiti", intArrayOf(c(0xFFFF5E7E), c(0xFFFFA552), c(0xFF3EE6C1), c(0xFF4C8DFF), c(0xFFB36BFF))),
         Palette("hue", "Hue Shift", intArrayOf(c(0xFF00E5A0), c(0xFF2D7BFF), c(0xFF8C5CFF), c(0xFFFF3D7F))),
     )
@@ -75,7 +73,6 @@ enum class Category(val label: String) {
     PIXEL("Pixel"),
     LIGHT("Light"),
     GOTHIC("Gothic"),
-    KINGDOM("King of Kings"),
 }
 
 data class WallpaperSpec(
@@ -307,7 +304,7 @@ object Styles {
         GlitchBust, ErrorWindows, DataRain,
         PixelCastle, PixelQuest, PixelSpace, PixelLandscape,
         LanternFestival, Candles, Jellyfish, Fireflies,
-    ) + KingOfKings.styles
+    )
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(
@@ -329,14 +326,6 @@ object Styles {
         "comic_pop" to "Comic", "doodle_stickers" to "Comic",
         "gatti" to "Cats", "gatti_sketch" to "Cats",
         "space_doodles" to "Space",
-        // King of Kings
-        "kok_risen" to "The Christ", "kok_shepherd" to "The Christ",
-        "kok_calvary" to "The Passion", "kok_thorns" to "The Passion",
-        "kok_heart" to "The Passion", "kok_tomb" to "The Passion",
-        "kok_chirho" to "Symbols", "kok_dove" to "Symbols", "kok_lamb" to "Symbols",
-        "kok_fish" to "Symbols", "kok_window" to "Symbols", "kok_word" to "Symbols",
-        "kok_hands" to "Symbols",
-        "kok_name" to "Words", "kok_redletters" to "Words",
     )
 
     fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: retired.firstOrNull { it.id == id } ?: all[0]
