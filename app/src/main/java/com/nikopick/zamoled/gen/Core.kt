@@ -51,7 +51,8 @@ object Palettes {
         "auto" -> {
             val r = Random(seed xor 0x5DEECE66DL)
             val preferred = style?.autoPalettes
-            if (preferred.isNullOrEmpty()) all[r.nextInt(all.size)] else byId(preferred[r.nextInt(preferred.size)])
+            if (preferred.isNullOrEmpty()) all[r.nextInt(all.size)]
+            else preferred[r.nextInt(preferred.size)].let { if (it == "you") you else byId(it) }
         }
         "you" -> you
         else -> byId(id)
@@ -60,6 +61,7 @@ object Palettes {
 
 enum class Category(val label: String) {
     DOODLE("Doodle"),
+    MATERIAL("For Pixel"),
     MINIMAL("Minimal"),
     GEOMETRIC("Geometric"),
     SPACE("Space"),
@@ -246,6 +248,9 @@ class Scene(
 abstract class Style(val id: String, val name: String, val category: Category) {
     /** Palettes "Auto" picks from for this style; null means any palette. */
     open val autoPalettes: List<String>? = null
+
+    /** False for styles the Detail slider does nothing to. */
+    open val usesDetail: Boolean get() = true
     abstract fun draw(s: Scene)
 }
 
@@ -291,7 +296,8 @@ object Renderer {
 object Styles {
     /** Styles shown in the app, grouped by world. */
     val all: List<Style> = listOf(
-        DoodleScatter, DoodlePattern, DoodleSpotlight, SpaceDoodles, ComicPop, DoodleStickers, Gatti, GattiSketch,
+        StickerBomb, Gouache, Chalk, SpaceDoodles, ComicPop, Gatti, GattiSketch,
+        M3Bloom, M3Cookies, M3Waves, M3Garden, M3Pills, M3Orbit,
         LoneTree, KoiPond, MoonFisher,
         CrystalCave, ArtDecoTower, FloatingIsle,
         AstronautDrift, RingedWorld, BlackHole, Eclipse,
@@ -313,6 +319,7 @@ object Styles {
         SpectrumBars, CircularSpectrum, Oscilloscope, FlowerOfLife, Metatron,
         GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails, NeonRain,
         GothMoonQueen, GothRavenLady, GothWanderer,
+        DoodleScatter, DoodlePattern, DoodleSpotlight, DoodleStickers,
     )
 
     /**
@@ -322,8 +329,8 @@ object Styles {
      */
     private val subcategories: Map<String, String> = mapOf(
         // Doodle
-        "doodle_scatter" to "Classic", "doodle_pattern" to "Classic", "doodle_spotlight" to "Classic",
-        "comic_pop" to "Comic", "doodle_stickers" to "Comic",
+        "sticker_bomb" to "Sticker", "gouache" to "Painted", "chalk" to "Chalk",
+        "comic_pop" to "Comic",
         "gatti" to "Cats", "gatti_sketch" to "Cats",
         "space_doodles" to "Space",
     )

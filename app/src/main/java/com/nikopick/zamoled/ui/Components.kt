@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.Church
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridOn
 import androidx.compose.material.icons.rounded.Lightbulb
@@ -60,6 +61,7 @@ import com.nikopick.zamoled.gen.Category
 val Category.icon: ImageVector
     get() = when (this) {
         Category.DOODLE -> Icons.Rounded.Gesture
+        Category.MATERIAL -> Icons.Rounded.PhoneAndroid
         Category.MINIMAL -> Icons.Rounded.RadioButtonUnchecked
         Category.GEOMETRIC -> Icons.Rounded.Category
         Category.SPACE -> Icons.Rounded.NightsStay
@@ -78,6 +80,7 @@ val Category.icon: ImageVector
 /** Each category gets its own expressive shape, in the style of Material 3's shape library. */
 fun Category.polygon(): RoundedPolygon = when (this) {
     Category.DOODLE -> RoundedPolygon.star(8, radius = 1f, innerRadius = 0.78f, rounding = CornerRounding(0.18f))
+    Category.MATERIAL -> RoundedPolygon.star(9, radius = 1f, innerRadius = 0.82f, rounding = CornerRounding(0.32f))
     Category.MINIMAL -> RoundedPolygon.circle(numVertices = 10)
     Category.GEOMETRIC -> RoundedPolygon(6, rounding = CornerRounding(0.25f))
     Category.SPACE -> RoundedPolygon.star(5, radius = 1f, innerRadius = 0.58f, rounding = CornerRounding(0.2f))

@@ -1,8 +1,10 @@
 package com.nikopick.zamoled.gen
 
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.DashPathEffect
+import android.graphics.DiscretePathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
@@ -12,9 +14,29 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+/** How a [Pen] puts a doodle on the page. */
+enum class PenLook {
+    /** Crisp vector line art or flat fills. */
+    PLAIN,
+
+    /** Gouache and ink: wobbling brush outlines, pigment that sits slightly off its outline, flecks in the paint. */
+    PAINTED,
+
+    /** The white die-cut border a sticker has: the doodle's silhouette, fattened. */
+    DIECUT,
+
+    /** The soft shadow a sticker throws on whatever is under it. */
+    SHADOW,
+
+    /** Chalk: broken, dusty strokes with coloured hatching standing in for fills. */
+    CHALK,
+}
+
 /**
  * Draws doodles in a unit space (about -1..1). Outline mode gives line art in one ink colour;
- * filled mode gives flat cartoon stickers: pastel fills with an ink outline.
+ * filled mode gives flat cartoon stickers: pastel fills with an ink outline. The [look] changes
+ * every shape the doodle is made of at once, so any icon can be a sticker, a gouache painting or a
+ * chalk drawing without being redrawn.
  */
 class Pen(
     private val s: Scene,
@@ -27,8 +49,10 @@ class Pen(
     private val darkInk: Boolean = false,
     /** Light every filled shape as a volume instead of flooding it with a flat colour. */
     private val shaded: Boolean = false,
+    private val look: PenLook = PenLook.PLAIN,
 ) {
     val c: Canvas get() = s.canvas
+    private val lineW = width
     private val linePaint = s.stroke(ink, width, alpha)
 
     /** Soft halo drawn under the sharp line; blur radii follow the canvas scale. */
@@ -53,7 +77,101 @@ class Pen(
         return Shade.volume(box, cols[i % cols.size])
     }
 
+    // ---- hand-made looks ----
+
+    private val wobble = DiscretePathEffect(0.12f, 0.02f)
+    private val wobbleFine = DiscretePathEffect(0.07f, 0.012f)
+    private val dust = DiscretePathEffect(0.1f, 0.03f)
+
+    private val brushLine = s.stroke(ink, width * 1.05f, alpha).apply { pathEffect = wobble }
+    private val brushBleed = s.stroke(ink, width * 0.5f, alpha * 5 / 12).apply { pathEffect = wobbleFine }
+    private val cutPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(250, 247, 240)
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = width * 4.6f
+        strokeJoin = Paint.Join.ROUND
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(150, 0, 0, 0)
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = width * 4.6f
+        strokeJoin = Paint.Join.ROUND
+        maskFilter = BlurMaskFilter(width * 2.6f, BlurMaskFilter.Blur.NORMAL)
+    }
+    private val chalkLine = s.stroke(ink, width * 1.25f, alpha * 9 / 10).apply { pathEffect = dust }
+    private val chalkEdge = s.stroke(ink, width * 0.55f, alpha * 5 / 9).apply { pathEffect = wobbleFine }
+    private val chalkHaze = s.stroke(ink, width * 3.2f, alpha / 5, width * 1.8f)
+
+    private fun shape(p: Path, fill: Int, closed: Boolean = true) {
+        when (look) {
+            PenLook.PLAIN -> Unit
+            PenLook.SHADOW -> {
+                c.save()
+                c.translate(lineW * 0.9f, lineW * 1.6f)
+                c.drawPath(p, shadowPaint)
+                c.restore()
+            }
+            PenLook.DIECUT -> c.drawPath(p, cutPaint)
+            PenLook.PAINTED -> painted(p, fill, closed)
+            PenLook.CHALK -> chalked(p, fill, closed)
+        }
+    }
+
+    private fun painted(p: Path, fill: Int, closed: Boolean) {
+        val colors = fillColors
+        if (closed && colors != null && fill >= 0) {
+            val col = colors[fill % colors.size]
+            val box = RectF()
+            p.computeBounds(box, true)
+            // Pigment never lands exactly inside the outline, which is most of what makes it look painted.
+            c.save()
+            c.translate(lineW * 0.55f, lineW * 0.35f)
+            val paint = if (shaded) Shade.volume(box, col) else s.fill(col)
+            paint.pathEffect = wobble
+            c.drawPath(p, paint)
+            c.restore()
+            // Flecks where the paint is thinner or thicker.
+            c.save()
+            c.clipPath(p)
+            repeat(9) {
+                val x = s.f(box.left, box.right)
+                val y = s.f(box.top, box.bottom)
+                val light = s.chance(0.5f)
+                c.drawCircle(x, y, s.f(0.012f, 0.04f), s.fill(if (light) lighten(col, 0.5f) else darken(col, 0.4f), 70))
+            }
+            c.restore()
+        }
+        c.drawPath(p, brushLine)
+        c.drawPath(p, brushBleed)
+    }
+
+    private fun chalked(p: Path, fill: Int, closed: Boolean) {
+        val colors = fillColors
+        if (closed && colors != null && fill >= 0) {
+            val col = colors[fill % colors.size]
+            c.save()
+            c.clipPath(p)
+            val box = RectF()
+            p.computeBounds(box, true)
+            val paint = s.stroke(col, lineW * 0.8f, 120).apply { pathEffect = dust }
+            var x = box.left - box.height()
+            while (x < box.right) {
+                c.drawLine(x, box.bottom, x + box.height(), box.top, paint)
+                x += lineW * 2.6f
+            }
+            c.restore()
+        }
+        c.drawPath(p, chalkHaze)
+        c.drawPath(p, chalkLine)
+        c.drawPath(p, chalkEdge)
+    }
+
+    private val handMade: Boolean get() = look != PenLook.PLAIN
+    private val marksDetail: Boolean get() = look == PenLook.PAINTED || look == PenLook.CHALK
+
     fun path(p: Path, fill: Int = -1) {
+        if (handMade) { shape(p, fill); return }
         val box = RectF()
         if (shaded && fill >= 0) p.computeBounds(box, true)
         fp(fill, box)?.let { c.drawPath(p, it) }
@@ -62,12 +180,14 @@ class Pen(
     }
 
     fun circle(x: Float, y: Float, r: Float, fill: Int = -1) {
+        if (handMade) { shape(Path().apply { addCircle(x, y, r, Path.Direction.CW) }, fill); return }
         fp(fill, RectF(x - r, y - r, x + r, y + r))?.let { c.drawCircle(x, y, r, it) }
         glowPaint?.let { c.drawCircle(x, y, r, it) }
         c.drawCircle(x, y, r, linePaint)
     }
 
     fun oval(l: Float, t: Float, r: Float, b: Float, fill: Int = -1) {
+        if (handMade) { shape(Path().apply { addOval(RectF(l, t, r, b), Path.Direction.CW) }, fill); return }
         val rect = RectF(l, t, r, b)
         fp(fill, rect)?.let { c.drawOval(rect, it) }
         glowPaint?.let { c.drawOval(rect, it) }
@@ -75,6 +195,7 @@ class Pen(
     }
 
     fun rrect(l: Float, t: Float, r: Float, b: Float, rad: Float, fill: Int = -1) {
+        if (handMade) { shape(Path().apply { addRoundRect(RectF(l, t, r, b), rad, rad, Path.Direction.CW) }, fill); return }
         val rect = RectF(l, t, r, b)
         fp(fill, rect)?.let { c.drawRoundRect(rect, rad, rad, it) }
         glowPaint?.let { c.drawRoundRect(rect, rad, rad, it) }
@@ -82,11 +203,13 @@ class Pen(
     }
 
     fun line(x1: Float, y1: Float, x2: Float, y2: Float) {
+        if (handMade) { shape(Path().apply { moveTo(x1, y1); lineTo(x2, y2) }, -1, false); return }
         glowPaint?.let { c.drawLine(x1, y1, x2, y2, it) }
         c.drawLine(x1, y1, x2, y2, linePaint)
     }
 
     fun arc(l: Float, t: Float, r: Float, b: Float, start: Float, sweep: Float) {
+        if (handMade) { shape(Path().apply { arcTo(RectF(l, t, r, b), start, sweep, false) }, -1, false); return }
         glowPaint?.let { c.drawArc(RectF(l, t, r, b), start, sweep, false, it) }
         c.drawArc(RectF(l, t, r, b), start, sweep, false, linePaint)
     }
@@ -100,19 +223,26 @@ class Pen(
             i += 2
         }
         if (close) p.close()
-        if (close) path(p, fill) else c.drawPath(p, linePaint)
+        if (close) path(p, fill) else if (handMade) shape(p, -1, false) else c.drawPath(p, linePaint)
     }
 
-    fun dot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, inkPaint)
+    fun dot(x: Float, y: Float, r: Float) {
+        if (!handMade || marksDetail) c.drawCircle(x, y, r, inkPaint)
+    }
 
     /** Eyes and noses: black on a filled sticker, ink on line art. */
-    fun darkDot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, if (filled && !darkInk) darkPaint else inkPaint)
+    fun darkDot(x: Float, y: Float, r: Float) {
+        if (!handMade || marksDetail) c.drawCircle(x, y, r, if (filled && !darkInk) darkPaint else inkPaint)
+    }
 
     /** Always black: highlights cut into ink, or holes. */
-    fun blackDot(x: Float, y: Float, r: Float) = c.drawCircle(x, y, r, darkPaint)
+    fun blackDot(x: Float, y: Float, r: Float) {
+        if (!handMade || marksDetail) c.drawCircle(x, y, r, darkPaint)
+    }
 
     /** Parallel hatching clipped to [shape]. */
     fun hatch(shape: Path, spacing: Float, angle: Float) {
+        if (handMade && !marksDetail) return
         c.save()
         c.clipPath(shape)
         c.rotate(angle)
@@ -124,7 +254,9 @@ class Pen(
         c.restore()
     }
 
-    fun darkOval(l: Float, t: Float, r: Float, b: Float) = c.drawOval(RectF(l, t, r, b), if (filled && !darkInk) darkPaint else inkPaint)
+    fun darkOval(l: Float, t: Float, r: Float, b: Float) {
+        if (!handMade || marksDetail) c.drawOval(RectF(l, t, r, b), if (filled && !darkInk) darkPaint else inkPaint)
+    }
 }
 
 /** Runs [block] with the canvas moved so (x, y) is the origin and one unit equals [size]. */

@@ -448,19 +448,21 @@ private fun CustomizePanel(
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Detail", Modifier.weight(1f))
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-                Text(
-                    "%.1f×".format(detail),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                )
+        if (spec.style.usesDetail) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SectionLabel("Detail", Modifier.weight(1f))
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Text(
+                        "%.1f×".format(detail),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                }
             }
+            Slider(value = detail, onValueChange = onDetail, onValueChangeFinished = onDetailDone, valueRange = 0.4f..1.8f)
         }
-        Slider(value = detail, onValueChange = onDetail, onValueChangeFinished = onDetailDone, valueRange = 0.4f..1.8f)
         SectionLabel("Save resolution")
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             Resolution.entries.forEachIndexed { index, res ->

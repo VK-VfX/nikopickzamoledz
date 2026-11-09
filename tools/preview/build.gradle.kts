@@ -1,5 +1,9 @@
 plugins { kotlin("jvm") version "2.1.0" }
-repositories { mavenCentral() }
+repositories {
+    // Maven Central rate-limits the large Robolectric framework jars per IP; Google's mirror of it does not.
+    maven("https://maven-central.storage-download.googleapis.com/maven2")
+    mavenCentral()
+}
 kotlin { jvmToolchain(21) }
 sourceSets {
     main { kotlin.srcDir("../../app/src/main/java/com/nikopick/zamoled/gen") }
@@ -33,6 +37,7 @@ tasks.test {
     systemProperty("preview.seed", System.getProperty("preview.seed") ?: "1")
     systemProperty("preview.palette", System.getProperty("preview.palette") ?: "auto")
     systemProperty("preview.layout", System.getProperty("preview.layout") ?: "auto")
+    systemProperty("preview.width", System.getProperty("preview.width") ?: "540")
     testLogging { showStandardStreams = true }
     maxHeapSize = "3g"
     systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")

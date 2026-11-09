@@ -4,10 +4,11 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **49 wallpapers across 13 worlds**, each with its own art direction
+- **54 wallpapers across 14 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
-  | Doodle    | Doodle Scatter, Doodle Wall, Doodle Spotlight, Doodle Stickers, Gatti and Gatti Colour (painted cats with real coats), Space Doodles (astronaut pets), Doodle Bomb (packed sketchbook monsters) |
+  | Doodle    | Sticker Bomb (die-cut painted stickers slapped over one another), Gouache (loose painted shapes with spilled paint), Chalk (chalk on a blackboard, with coloured shading), Space Doodles, Doodle Bomb (packed sketchbook monsters), Gatti and Gatti Colour (painted cats with real coats) |
+  | For Pixel | Material 3 Expressive on pure black: Bloom, Cookies, Waves (a wavy progress indicator as a wallpaper), Shape Garden, Pills, Orbit. They use your phone's own Material You colours |
   | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
   | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
   | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
