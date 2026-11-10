@@ -70,10 +70,7 @@ val Category.icon: ImageVector
         Category.GEOMETRIC -> Icons.Rounded.Category
         Category.SPACE -> Icons.Rounded.NightsStay
         Category.NATURE -> Icons.Rounded.Landscape
-        Category.ABSTRACT -> Icons.Rounded.BubbleChart
-        Category.NEON -> Icons.Rounded.Bolt
         Category.AUDIO -> Icons.Rounded.GraphicEq
-        Category.MYSTIC -> Icons.Rounded.Visibility
         Category.CITY -> Icons.Rounded.LocationCity
         Category.GLITCH -> Icons.Rounded.BrokenImage
         Category.PIXEL -> Icons.Rounded.GridOn
@@ -91,10 +88,7 @@ fun Category.polygon(): RoundedPolygon = when (this) {
     Category.GEOMETRIC -> RoundedPolygon(6, rounding = CornerRounding(0.25f))
     Category.SPACE -> RoundedPolygon.star(5, radius = 1f, innerRadius = 0.58f, rounding = CornerRounding(0.2f))
     Category.NATURE -> RoundedPolygon(3, rounding = CornerRounding(0.35f))
-    Category.ABSTRACT -> RoundedPolygon.star(12, radius = 1f, innerRadius = 0.86f, rounding = CornerRounding(0.12f))
-    Category.NEON -> RoundedPolygon(4, rounding = CornerRounding(0.3f))
     Category.AUDIO -> RoundedPolygon.star(6, radius = 1f, innerRadius = 0.72f, rounding = CornerRounding(0.2f))
-    Category.MYSTIC -> RoundedPolygon.star(6, radius = 1f, innerRadius = 0.9f, rounding = CornerRounding(0.4f))
     Category.CITY -> RoundedPolygon(8, rounding = CornerRounding(0.12f))
     Category.GLITCH -> RoundedPolygon.star(3, radius = 1f, innerRadius = 0.62f, rounding = CornerRounding(0.15f))
     Category.PIXEL -> RoundedPolygon(4, rounding = CornerRounding(0.06f))

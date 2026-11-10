@@ -41,6 +41,8 @@ tasks.test {
     systemProperty("preview.density", System.getProperty("preview.density") ?: "1")
     systemProperty("preview.black", System.getProperty("preview.black") ?: "0")
     systemProperty("preview.safe", System.getProperty("preview.safe") ?: "0")
+    systemProperty("preview.align", System.getProperty("preview.align") ?: "1")
+    systemProperty("preview.vpos", System.getProperty("preview.vpos") ?: "1")
     systemProperty("preview.white", System.getProperty("preview.white") ?: "0")
     systemProperty("preview.text", System.getProperty("preview.text") ?: "")
     testLogging { showStandardStreams = true }

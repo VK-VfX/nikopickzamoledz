@@ -258,5 +258,5 @@ object MoonPath : Style("moon_path", "Moon Path", Category.NATURE) {
 }
 
 object NatureWorld {
-    val styles: List<Style> = listOf(NorthernLights, MoonlitPeaks, StarryPines, MoonPath)
+    val styles: List<Style> = listOf(NorthernLights, MoonlitPeaks, StarryPines, MoonPath, Campfire, Embers, Inferno, Volcano, Flame, LightningStrike, StormCell, ThunderTree)
 }

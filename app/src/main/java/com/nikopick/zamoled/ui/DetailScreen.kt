@@ -356,6 +356,8 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                             onWordsDone = { spec = spec.copy(text = words.trim()) },
                             onSafe = { spec = spec.copy(safe = it) },
                             onWhite = { spec = spec.copy(white = it) },
+                            onAlign = { spec = spec.copy(align = it) },
+                            onVpos = { spec = spec.copy(vpos = it) },
                             onShare = { ShareLink.share(context, spec) },
                             onMore = { onMoreLikeThis(spec.styleId) },
                         )
@@ -516,6 +518,8 @@ private fun CustomizePanel(
     onWordsDone: () -> Unit,
     onSafe: (Boolean) -> Unit,
     onWhite: (Boolean) -> Unit,
+    onAlign: (Int) -> Unit,
+    onVpos: (Int) -> Unit,
     onShare: () -> Unit,
     onMore: () -> Unit,
 ) {
@@ -586,6 +590,18 @@ private fun CustomizePanel(
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 SegmentedButton(selected = !spec.white, onClick = { onWhite(false) }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Red") }
                 SegmentedButton(selected = spec.white, onClick = { onWhite(true) }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("White") }
+            }
+            SectionLabel("Alignment")
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("Left", "Center", "Right").forEachIndexed { k, label ->
+                    SegmentedButton(selected = spec.align == k, onClick = { onAlign(k) }, shape = SegmentedButtonDefaults.itemShape(k, 3)) { Text(label) }
+                }
+            }
+            SectionLabel("Position")
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("Top", "Middle", "Bottom").forEachIndexed { k, label ->
+                    SegmentedButton(selected = spec.vpos == k, onClick = { onVpos(k) }, shape = SegmentedButtonDefaults.itemShape(k, 3)) { Text(label) }
+                }
             }
         }
         // Widget-safe moves the picture below the launcher clock and weather; some styles are already built that way.

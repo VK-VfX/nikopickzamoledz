@@ -111,13 +111,27 @@ private fun Scene.setLine(
     return boxes
 }
 
+/** Where the block of text sits: the x it hangs from, the paint alignment, and the middle of its height. */
+private class Place(val x: Float, val align: Paint.Align, val midY: Float, val h: Float) {
+    /** The middle of a block [block] tall, kept clear of the top and bottom edges. */
+    fun mid(block: Float): Float {
+        val lo = h * 0.09f + block / 2f; val hi = h * 0.91f - block / 2f
+        return if (lo > hi) h / 2f else midY.coerceIn(lo, hi)
+    }
+}
+
+private fun Scene.place(margin: Float = w * 0.1f): Place {
+    val x = when (wordsAlign) { 0 -> margin; 2 -> w - margin; else -> cx }
+    val align = when (wordsAlign) { 0 -> Paint.Align.LEFT; 2 -> Paint.Align.RIGHT; else -> Paint.Align.CENTER }
+    val mid = when (wordsVert) { 0 -> h * 0.27f; 2 -> h * 0.73f; else -> h * 0.5f }
+    return Place(x, align, mid, h)
+}
+
 private abstract class WordStyle(id: String, name: String) : Style(id, name, Category.WORDS) {
     override val usesText: Boolean get() = true
     override val usesDetail: Boolean get() = false
     override val usesPalette: Boolean get() = false
 
-    // The words are set in the clear band between the launcher widgets and the app icons.
-    override val widgetSafe: Boolean get() = true
 }
 
 /** Big condensed capitals stacked down the left, the key word in colour. */
@@ -125,15 +139,17 @@ private object WordsBold : WordStyle("words_bold", "Bold") {
     override fun draw(s: Scene) {
         val w = s.words()
         val margin = s.w * 0.1f
-        val paint = s.textPaint(100f, Color.WHITE, Lettering.BOLD, Paint.Align.LEFT)
+        val at = s.place(margin)
+        val paint = s.textPaint(100f, Color.WHITE, Lettering.BOLD, at.align)
         val (size, lines) = Lettering.fit(w.text.uppercase(), paint, s.w - margin * 2f, 6, s.w * 0.34f, s.w * 0.07f)
         val lead = size * 1.0f
-        var y = s.h * 0.4f - (lines.size - 1) * lead / 2f
+        var y = at.mid(lines.size * lead) - (lines.size - 1) * lead / 2f
         for (line in lines) {
-            s.setLine(line, margin, y, paint, Paint.Align.LEFT, w, s.hi(), s.base())
+            s.setLine(line, at.x, y, paint, at.align, w, s.hi(), s.base())
             y += lead
         }
-        s.canvas.drawLine(margin, y - lead * 0.55f, margin + s.w * 0.14f, y - lead * 0.55f, s.stroke(s.hi(), 4f))
+        val bx = when (at.align) { Paint.Align.LEFT -> at.x; Paint.Align.RIGHT -> at.x - s.w * 0.14f; else -> at.x - s.w * 0.07f }
+        s.canvas.drawLine(bx, y - lead * 0.55f, bx + s.w * 0.14f, y - lead * 0.55f, s.stroke(s.hi(), 4f))
     }
 }
 
@@ -141,18 +157,20 @@ private object WordsBold : WordStyle("words_bold", "Bold") {
 private object WordsQuiet : WordStyle("words_quiet", "Quiet") {
     override fun draw(s: Scene) {
         val w = s.words()
-        val paint = s.textPaint(100f, Color.WHITE, Lettering.LIGHT).apply { letterSpacing = 0.32f }
+        val at = s.place(s.w * 0.12f)
+        val paint = s.textPaint(100f, Color.WHITE, Lettering.LIGHT, at.align).apply { letterSpacing = 0.32f }
         val (size, lines) = Lettering.fit(w.text.lowercase(), paint, s.w * 0.76f, 4, s.w * 0.07f, s.w * 0.035f)
         val lead = size * 1.7f
-        var y = s.h * 0.4f - (lines.size - 1) * lead / 2f
+        var y = at.mid(lines.size * lead) - (lines.size - 1) * lead / 2f
         val top = y - lead
         for (line in lines) {
-            s.setLine(line, s.cx, y, paint, Paint.Align.CENTER, w, s.hi(), s.base())
+            s.setLine(line, at.x, y, paint, at.align, w, s.hi(), s.base())
             y += lead
         }
         val rule = s.stroke(s.hi(), 1.8f, 220)
-        s.canvas.drawLine(s.cx - 40f, top, s.cx + 40f, top, rule)
-        s.canvas.drawLine(s.cx - 40f, y - lead * 0.45f, s.cx + 40f, y - lead * 0.45f, rule)
+        val rx = when (at.align) { Paint.Align.LEFT -> at.x; Paint.Align.RIGHT -> at.x - 80f; else -> at.x - 40f }
+        s.canvas.drawLine(rx, top, rx + 80f, top, rule)
+        s.canvas.drawLine(rx, y - lead * 0.45f, rx + 80f, y - lead * 0.45f, rule)
     }
 }
 
@@ -160,13 +178,14 @@ private object WordsQuiet : WordStyle("words_quiet", "Quiet") {
 private object WordsQuote : WordStyle("words_quote", "Quote") {
     override fun draw(s: Scene) {
         val w = s.words()
-        val paint = s.textPaint(100f, Color.WHITE, Lettering.SERIF)
+        val at = s.place(s.w * 0.1f)
+        val paint = s.textPaint(100f, Color.WHITE, Lettering.SERIF, at.align)
         val (size, lines) = Lettering.fit(w.text, paint, s.w * 0.8f, 5, s.w * 0.15f, s.w * 0.05f)
         val lead = size * 1.25f
-        var y = s.h * 0.4f - (lines.size - 1) * lead / 2f
-        s.canvas.drawText("“", s.cx, y - lead * 0.7f, s.textPaint(size * 2.6f, s.hi(), Lettering.SERIF))
+        var y = at.mid(lines.size * lead) - (lines.size - 1) * lead / 2f
+        s.canvas.drawText("“", at.x, y - lead * 0.7f, s.textPaint(size * 2.6f, s.hi(), Lettering.SERIF, at.align))
         for (line in lines) {
-            s.setLine(line, s.cx, y, paint, Paint.Align.CENTER, w, s.hi(), s.base())
+            s.setLine(line, at.x, y, paint, at.align, w, s.hi(), s.base())
             y += lead
         }
     }
@@ -176,12 +195,15 @@ private object WordsQuote : WordStyle("words_quote", "Quote") {
 private object WordsEcho : WordStyle("words_echo", "Echo") {
     override fun draw(s: Scene) {
         val w = s.words()
-        val paint = s.textPaint(100f, Color.WHITE, Lettering.BOLD)
+        val at = s.place(s.w * 0.07f)
+        val paint = s.textPaint(100f, Color.WHITE, Lettering.BOLD, at.align)
         val (size, lines) = Lettering.fit(w.text.uppercase(), paint, s.w * 0.86f, 2, s.w * 0.3f, s.w * 0.08f)
         val block = lines.size * size
-        var y = s.h * 0.3f
+        val copies = 5
+        val total = copies * (block + size * 0.12f)
+        var y = at.mid(total) - total / 2f + size * 0.8f
         var k = 0
-        while (y < s.h * 0.88f && k < 7) {
+        while (k < copies) {
             val p = Paint(paint)
             if (k > 0) {
                 p.style = Paint.Style.STROKE
@@ -189,7 +211,7 @@ private object WordsEcho : WordStyle("words_echo", "Echo") {
             }
             val alpha = if (k == 0) 255 else (230 - k * 34).coerceAtLeast(30)
             val low = if (s.whiteWords) Color.rgb(125, 125, 125) else Color.WHITE
-            for ((i, line) in lines.withIndex()) s.setLine(line, s.cx, y + i * size, p, Paint.Align.CENTER, w, s.hi(), low, alpha)
+            for ((i, line) in lines.withIndex()) s.setLine(line, at.x, y + i * size, p, at.align, w, s.hi(), low, alpha)
             y += block + size * 0.12f
             k++
         }
@@ -200,16 +222,17 @@ private object WordsEcho : WordStyle("words_echo", "Echo") {
 private object WordsMarker : WordStyle("words_marker", "Marker") {
     override fun draw(s: Scene) {
         val w = s.words()
-        val paint = s.textPaint(100f, Color.WHITE, Lettering.BOLD)
+        val at = s.place(s.w * 0.1f)
+        val paint = s.textPaint(100f, Color.WHITE, Lettering.BOLD, at.align)
         val (size, lines) = Lettering.fit(w.text.uppercase(), paint, s.w * 0.78f, 5, s.w * 0.2f, s.w * 0.06f)
         val lead = size * 1.22f
-        var y = s.h * 0.4f - (lines.size - 1) * lead / 2f
+        var y = at.mid(lines.size * lead) - (lines.size - 1) * lead / 2f
         for (line in lines) {
             // Bars first, so the type sits on top of them.
-            val boxes = s.setLine(line, s.cx, y, paint, Paint.Align.CENTER, w, Color.TRANSPARENT, Color.TRANSPARENT, 0)
+            val boxes = s.setLine(line, at.x, y, paint, at.align, w, Color.TRANSPARENT, Color.TRANSPARENT, 0)
             val pad = size * 0.12f
             for (b in boxes) s.canvas.drawRect(b.left - pad, b.top + size * 0.12f, b.right + pad, b.bottom, s.fill(s.hi()))
-            s.setLine(line, s.cx, y, paint, Paint.Align.CENTER, w, Color.BLACK, s.base())
+            s.setLine(line, at.x, y, paint, at.align, w, Color.BLACK, s.base())
             y += lead
         }
     }

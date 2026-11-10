@@ -41,6 +41,8 @@ object Palettes {
         Palette("candy", "Candy", intArrayOf(c(0xFFF47C7C), c(0xFFFFC97A), c(0xFF7FD8A8), c(0xFFC98BD6), c(0xFF9ED9E0))),
         Palette("graffiti", "Graffiti", intArrayOf(c(0xFFFF5E7E), c(0xFFFFA552), c(0xFF3EE6C1), c(0xFF4C8DFF), c(0xFFB36BFF))),
         Palette("hue", "Hue Shift", intArrayOf(c(0xFF00E5A0), c(0xFF2D7BFF), c(0xFF8C5CFF), c(0xFFFF3D7F))),
+        Palette("fire", "Fire", intArrayOf(c(0xFFE63900), c(0xFFFF8F00), c(0xFFFFD54F), c(0xFFFFF3C4))),
+        Palette("storm", "Storm", intArrayOf(c(0xFFBFD4FF), c(0xFF6F8CFF), c(0xFF7A5CFF), c(0xFFE8EEFF))),
         Palette("cyber", "Cyberpunk", intArrayOf(c(0xFF00E5FF), c(0xFFFF2BD6), c(0xFFFFB300), c(0xFF7C4DFF))),
     )
 
@@ -73,10 +75,7 @@ enum class Category(val label: String) {
     GEOMETRIC("Geometric"),
     SPACE("Space"),
     NATURE("Nature"),
-    ABSTRACT("Abstract"),
-    NEON("Neon"),
     AUDIO("Audio"),
-    MYSTIC("Mystic"),
     CITY("City"),
     GLITCH("Glitch"),
     PIXEL("Pixel Bits"),
@@ -98,9 +97,16 @@ data class WallpaperSpec(
     val safe: Boolean = false,
     /** Words styles: highlight the key word in white instead of red. */
     val white: Boolean = false,
+    /** Words styles: 0 left, 1 centre, 2 right. */
+    val align: Int = 1,
+    /** Words styles: 0 top, 1 middle, 2 bottom. */
+    val vpos: Int = 1,
 ) {
-    val key: String get() =
-        "$styleId|$seed|$paletteId|$density|$layoutId|$black|${text.replace('|', ' ').replace('\n', ' ')}|${(if (safe) "s" else "") + (if (white) "w" else "")}"
+    val key: String get() {
+        val opts = (if (safe) "s" else "") + (if (white) "w" else "") +
+            (if (align == 0) "l" else if (align == 2) "r" else "") + (if (vpos == 0) "t" else if (vpos == 2) "b" else "")
+        return "$styleId|$seed|$paletteId|$density|$layoutId|$black|${text.replace('|', ' ').replace('\n', ' ')}|$opts"
+    }
     val style: Style get() = Styles.byId(styleId)
     val palette: Palette get() = Palettes.resolve(paletteId, seed, style)
     val layout: DoodleLayout get() = DoodleLayout.resolve(layoutId, seed)
@@ -110,6 +116,7 @@ data class WallpaperSpec(
             // Four fields is the oldest format, five added arrangements, seven added black level and text,
             // eight added the option letters (s = widget-safe, w = white highlight).
             val p = key.split('|', limit = 8)
+            if (!Styles.known(p[0])) return null
             if (p.size != 4 && p.size != 5 && p.size != 7 && p.size != 8) return null
             val seed = p[1].toLongOrNull() ?: return null
             val density = p[3].toFloatOrNull() ?: return null
@@ -117,7 +124,8 @@ data class WallpaperSpec(
             val layout = if (p.size >= 5) p[4] else DoodleLayout.GRID.id
             val black = if (p.size >= 7) p[5].toFloatOrNull() ?: return null else 0f
             val opts = if (p.size == 8) p[7] else ""
-            return WallpaperSpec(p[0], seed, p[2], density, layout, black, if (p.size >= 7) p[6] else "", 's' in opts, 'w' in opts)
+            return WallpaperSpec(p[0], seed, p[2], density, layout, black, if (p.size >= 7) p[6] else "", 's' in opts, 'w' in opts,
+                if ('l' in opts) 0 else if ('r' in opts) 2 else 1, if ('t' in opts) 0 else if ('b' in opts) 2 else 1)
         }
     }
 }
@@ -198,6 +206,9 @@ class Scene(
     val text: String = "",
     /** Words styles: the highlighted word is white (the rest dimmed) instead of red. */
     val whiteWords: Boolean = false,
+    /** Words styles: horizontal alignment (0 left, 1 centre, 2 right) and vertical position (0 top, 1 middle, 2 bottom). */
+    val wordsAlign: Int = 1,
+    val wordsVert: Int = 1,
 ) {
 
     val cx: Float get() = w / 2f
@@ -317,6 +328,8 @@ object Renderer {
             layout = spec.layout,
             text = spec.text,
             whiteWords = spec.white,
+            wordsAlign = spec.align,
+            wordsVert = spec.vpos,
         )
         spec.style.draw(scene)
         canvas.restore()
@@ -391,24 +404,21 @@ object Styles {
         LoneTree, KoiPond, MoonFisher, LineConstellation, OneLine, Contours, Orbits, Glance,
         CrystalCave, ArtDecoTower, FloatingIsle,
         AstronautDrift, RingedWorld, BlackHole, Eclipse,
-        StarrySwirl, LiquidMarble, InkSmoke,
-        NeonSign, Synthwave,
         Rooftops, Skyline, NightHighway,
         DataRain,
         PixelCastle, PixelQuest, PixelSunset, PixelPlanet, PixelTrain, PixelLighthouse, PixelArcade,
         LanternFestival, Candles, Jellyfish, Fireflies,
-    ) + NatureWorld.styles + NeonWorld.styles + GlitchWorld.styles + MysticWorld.styles + LabWorld.styles + WordsWorld.styles
+    ) + NatureWorld.styles + GlitchWorld.styles + LabWorld.styles + WordsWorld.styles
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(
         Halo, Horizon, Silk, PolygonTunnel, DotMatrix, Isometric, Starfield, Constellations,
-        Topographic, Mountains, FlowField, Waves, Mandala, NeonShapes, Circuit,
-        SpectrumBars, CircularSpectrum, Oscilloscope, FlowerOfLife, Metatron,
+        Topographic, Mountains,
+        SpectrumBars, CircularSpectrum, Oscilloscope,
         GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails, NeonRain,
         GothMoonQueen, GothRavenLady, GothWanderer, Vinyl, Boombox, StudioMic,
         DoodleScatter, DoodlePattern, DoodleSpotlight, DoodleStickers,
-        Aurora, MoonlitForest, MountainLake, NightBloom, NeonAlley, GlitchBust, ErrorWindows,
-        TarotMoon, AllSeeingEye, CrystalBall, MoonPhases,
+        Aurora, MoonlitForest, MountainLake, NightBloom, GlitchBust, ErrorWindows,
         PixelSpace, PixelCity, PixelLandscape,
     )
 
@@ -429,16 +439,14 @@ object Styles {
         "glance" to "Always-on",
         // Nature
         "aurora_night" to "Sky", "starry_pines" to "Sky", "moon_path" to "Water", "moonlit_peaks" to "Land",
-        // Neon
-        "neon_tunnel" to "Tubes", "neon_ribbons" to "Tubes", "neon_storm" to "Electric", "neon_sign" to "Signs", "synthwave" to "Retro",
+        "fire_camp" to "Fire", "fire_embers" to "Fire", "fire_inferno" to "Fire", "fire_volcano" to "Fire", "fire_flame" to "Fire",
+        "storm_strike" to "Lightning", "storm_cell" to "Lightning", "storm_tree" to "Lightning",
         // Pixel Bits
         "pixel_castle" to "Games", "pixel_quest" to "Games", "pixel_sunset" to "Scenes", "pixel_planet" to "Scenes",
         "pixel_train" to "Scenes", "pixel_lighthouse" to "Scenes", "pixel_arcade" to "Games",
         // Glitch
         "data_rain" to "Signal", "wet_street" to "Cyberpunk", "source_code" to "Code", "code_diff" to "Code", "code_panic" to "Code", "code_hex" to "Code", "code_fall" to "Code",
         "code_poster" to "Code", "code_corrupt" to "Code", "code_build" to "Code",
-        // Mystic
-        "arcane_circle" to "Occult", "zodiac_wheel" to "Stars", "lunar_cycle" to "Stars", "tarot_card" to "Cards", "crystal_cluster" to "Crystals",
         // For Pixel
         "m3_bloom" to "Shapes", "m3_cookies" to "Shapes", "m3_blobs" to "Shapes",
         "m3_waves" to "Flow", "m3_ribbons" to "Flow",
@@ -447,6 +455,9 @@ object Styles {
         "gatti" to "Cats", "gatti_sketch" to "Cats",
         "space_doodles" to "Space",
     )
+
+    /** True for any style the app can still draw, including retired ones. */
+    fun known(id: String): Boolean = (aliases[id] ?: id).let { k -> all.any { it.id == k } || retired.any { it.id == k } }
 
     fun byId(id: String): Style {
         val key = aliases[id] ?: id

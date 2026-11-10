@@ -547,19 +547,53 @@ private class Row(
     val segs: List<Pair<String, Int>>? = null,
     val bg: Int = 0,
     val gutter: String? = null,
+    /** An easter egg line: lit in the accent colour so it can be found. */
+    val egg: Boolean = text.trim() in EGG_SET,
 )
 
-private class Src(val name: String, val lines: List<String>)
+/** Little surprises hidden in every code wallpaper. */
+private val EGGS: List<List<String>> = listOf(
+    listOf("    // 🐱 meow"),
+    listOf("    // TODO: feed the cat 🐈"),
+    listOf("    val cat = \"=^.^=\"  // purr"),
+    listOf("    // /\\_/\\", "    //( o.o )", "    // > ^ <"),
+    listOf("    // 👻 boo"),
+    listOf("    // it works on my machine 🤷"),
+    listOf("    // sudo make me a sandwich 🥪"),
+    listOf("    // here be dragons 🐉"),
+    listOf("    // ☕ coffee.exe has stopped responding"),
+    listOf("    // It's not a lake, it's an ocean."),
+    listOf("    // 404: sleep not found 😴"),
+    listOf("    val answer = 42  // obviously"),
+    listOf("    // the cat sat on the keyboard: kkkkkkkkkkkk 🐈"),
+    listOf("    // Scary monsters and nice sprites 🎧"),
+    listOf("    // Altered item detected 🔦"),
+    listOf("    // 🦆 quack (rubber duck debugging)"),
+)
+private val EGG_SET: Set<String> = EGGS.flatten().map { it.trim() }.toSet()
+
+private class Src(val name: String, val lines: List<String>, val eggAt: List<Int>)
 
 private fun Scene.source(): Src {
     val names = CodeSource.names
     val name = names.takeIf { it.isNotEmpty() }?.let { it[i(0, it.size)] }
     val text = name?.let { CodeSource.read(it) } ?: CodeSource.FALLBACK
-    return Src(name ?: "WetStreet.kt", text.replace("\t", "    ").lines())
+    val lines = text.replace("\t", "    ").lines().toMutableList()
+    // Hide three or four surprises somewhere in the file.
+    val picks = EGGS.shuffled(java.util.Random(i(0, 1_000_000).toLong())).take(i(3, 5))
+    for (egg in picks) lines.addAll(i(2, maxOf(3, lines.size - 2)), egg)
+    val at = lines.indices.filter { lines[it].trim() in EGG_SET }
+    return Src(name ?: "WetStreet.kt", lines, at)
 }
 
 /** The first line to show so that a declaration lands on the lit row. */
 private fun Scene.windowStart(src: Src, rows: Int, focusRow: Int): Int {
+    // Mostly, show one of the hidden surprises somewhere on the page.
+    if (src.eggAt.isNotEmpty() && chance(0.75f)) {
+        val egg = src.eggAt[i(0, src.eggAt.size)]
+        val spot = if (chance(0.5f)) focusRow + i(3, 14) else i(4, rows - 5)
+        return (egg - spot).coerceIn(0, maxOf(0, src.lines.size - rows))
+    }
     val decls = src.lines.indices.filter { DECL.containsMatchIn(src.lines[it]) }
     val pick = if (decls.isEmpty()) 0 else decls[i(0, decls.size)]
     return (pick - focusRow).coerceIn(0, maxOf(0, src.lines.size - rows))
@@ -596,7 +630,7 @@ private fun highlight(line: String, th: CodeTheme): List<Pair<String, Int>> {
  */
 private fun Scene.drawRows(
     rows: List<Row>, th: CodeTheme, size: Float, lead: Float, gutterCols: Int, sigma: Float, floor: Float,
-    corrupt: Float, focusRow: Int, cursor: Boolean, bar: Boolean,
+    corrupt: Float, focusRow: Int, cursor: Boolean, bar: Boolean, rot: Float = 0f,
 ) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
     val adv = paint.measureText("M")
@@ -615,7 +649,7 @@ private fun Scene.drawRows(
             canvas.drawText(row.gutter, margin + gutterCols * adv - adv * 1.1f, y, paint)
             paint.textAlign = Paint.Align.LEFT
         }
-        val segs = row.segs ?: highlight(row.text.take(cols), th)
+        val segs = row.segs ?: if (row.egg) listOf(row.text to lighten(th.fn, 0.25f)) else highlight(row.text.take(cols), th)
         var col = 0
         for ((tok0, color) in segs) {
             if (col >= cols) break
@@ -623,7 +657,8 @@ private fun Scene.drawRows(
             if (color != Color.TRANSPARENT) {
                 val chars = tok.toCharArray()
                 var hit = false
-                if (corrupt > 0f) for (k in chars.indices) if (chars[k] != ' ' && chance(corrupt)) { chars[k] = NOISE[i(0, NOISE.length)]; hit = true }
+                val rate = corrupt + rot * (1f - lum)
+                if (rate > 0f) for (k in chars.indices) if (chars[k] != ' ' && chance(rate)) { chars[k] = NOISE[i(0, NOISE.length)]; hit = true }
                 val hot = lum > 0.5f
                 if (hot) paint.setShadowLayer(8f + 8f * lum, 0f, 0f, withAlpha(color, 230)) else paint.clearShadowLayer()
                 if (!hit) {
@@ -702,6 +737,8 @@ private object CodePanic : CodeStyle("code_panic", "Kernel Panic", 6f, 7, 70f) {
         "java.lang.ArithmeticException: divide by zero",
         "kotlin.NotImplementedError: An operation is not implemented: more sky",
         "java.lang.NullPointerException: no pixel here",
+        "java.lang.CatNotFoundException: 🐈 left the building",
+        "java.lang.StackOverflowError: it is turtles 🐢 all the way down",
     )
 
     override fun paintCode(s: Scene) {
@@ -776,7 +813,7 @@ private object CodeFall : CodeStyle("code_fall", "Code Fall", 3f, 4, 44f) {
     override val widgetSafe: Boolean get() = false
     override fun paintCode(s: Scene) {
         val th = s.codeTheme(); val src = s.source()
-        val stream = src.lines.joinToString(" ") { it.trim() }.filter { !it.isWhitespace() }.ifEmpty { "fundrawscene" }
+        val stream = src.lines.joinToString(" ") { it.trim() }.filter { !it.isWhitespace() && !it.isSurrogate() }.ifEmpty { "fundrawscene" }
         val size = 22f; val lead = 25f
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD); textAlign = Paint.Align.CENTER }
         val adv = paint.measureText("M") * 1.04f
@@ -795,7 +832,7 @@ private object CodeFall : CodeStyle("code_fall", "Code Fall", 3f, 4, 44f) {
                     val base = when { ch.isDigit() -> th.num; ch.isLetter() -> if (ch.isUpperCase()) th.type else th.kw; else -> th.str }
                     if (k == len - 1) { paint.color = Color.WHITE; paint.setShadowLayer(14f, 0f, 0f, th.accent) }
                     else { paint.color = withAlpha(base, (70 + 185 * t).toInt()); paint.setShadowLayer(6f, 0f, 0f, withAlpha(base, (150 * t).toInt())) }
-                    s.canvas.drawText(ch.toString(), x, y, paint)
+                    s.canvas.drawText(if (k < len - 1 && s.chance(0.004f)) "🐈" else ch.toString(), x, y, paint)
                 }
             }
             x += adv
@@ -816,23 +853,78 @@ private object CodePoster : CodeStyle("code_poster", "Big Code", 9f, 4, 90f) {
     }
 }
 
-/** An editor in the middle of dying: characters swapped for noise, whole lines gone to static, holes punched out. */
-private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 6f, 12, 80f) {
+/**
+ * An editor that is not just breaking: it is being watched. Blood-red code rots toward the edges, lines
+ * are overwritten with messages, two eyes open behind the text and something runs down the screen.
+ */
+private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 7f, 14, 90f) {
+    override val usesPalette: Boolean get() = false
+    private val DREAD = listOf(
+        "HELP ME", "I SEE YOU", "DON'T LOOK BEHIND YOU", "IT IS INSIDE THE CODE", "WHO IS WRITING THIS",
+        "I CAN HEAR YOU TYPING", "WAKE UP", "YOU SHOULD NOT HAVE RUN THIS", "NO ONE IS HERE", "LET ME OUT",
+        "IT KNOWS YOUR NAME", "STOP SCROLLING", "BEHIND YOU", "THE CAT IS NOT A CAT 🐈",
+    )
+
+    private fun Scene.eyes() {
+        val y0 = h * 0.4f
+        for (side in intArrayOf(-1, 1)) {
+            val ex = cx + side * 245f
+            val eye = Path().apply {
+                moveTo(ex - 225f, y0); quadTo(ex, y0 - 260f, ex + 225f, y0); quadTo(ex, y0 + 220f, ex - 225f, y0); close()
+            }
+            canvas.drawPath(eye, fill(Color.rgb(48, 0, 6), 210, 6f))
+            canvas.save()
+            canvas.clipPath(eye)
+            val ix = ex + f(-34f, 34f)
+            canvas.drawCircle(ix, y0, 100f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(ix, y0, 100f, intArrayOf(Color.rgb(255, 70, 40), Color.rgb(170, 0, 14), Color.rgb(40, 0, 4)), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+            })
+            repeat(18) {
+                val a = f(0f, TAU); val r0 = f(95f, 200f)
+                val vx = ex + cos(a) * r0; val vy = y0 + sin(a) * r0 * 0.55f
+                canvas.drawLine(vx, vy, ix + cos(a) * 80f, y0 + sin(a) * 50f, stroke(Color.rgb(180, 0, 20), f(1f, 2.6f), 150))
+            }
+            canvas.drawOval(RectF(ix - 15f, y0 - 92f, ix + 15f, y0 + 92f), fill(Color.BLACK))
+            canvas.drawCircle(ix - 26f, y0 - 24f, 7f, fill(Color.WHITE, 150))
+            canvas.restore()
+            canvas.drawPath(eye, stroke(Color.rgb(255, 30, 50), 3f, 230, 9f))
+        }
+        // Something running down from them.
+        repeat(i(9, 16)) {
+            val x = f(0f, w); val y = f(h * 0.18f, h * 0.7f); val len = f(70f, 380f); val wd = f(3f, 8f)
+            canvas.drawLine(x, y, x, y + len, stroke(Color.rgb(190, 0, 22), wd, 200))
+            canvas.drawCircle(x, y + len, wd * 1.35f, fill(Color.rgb(190, 0, 22), 220))
+        }
+    }
+
     override fun paintCode(s: Scene) {
-        val th = s.codeTheme(); val src = s.source()
+        val th = CodeTheme(
+            kw = Color.rgb(255, 34, 52), str = Color.rgb(255, 112, 92), num = Color.rgb(255, 196, 150), type = Color.rgb(210, 0, 40),
+            fn = Color.rgb(255, 72, 72), accent = Color.rgb(255, 24, 44), comment = Color.rgb(126, 36, 48),
+            plain = Color.rgb(240, 208, 208), punct = Color.rgb(156, 62, 72), err = Color.rgb(255, 0, 30),
+        )
+        val src = s.source()
         val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
         val start = s.windowStart(src, rows, focus)
+        s.eyes()
+        val blood = Color.argb(120, 255, 0, 20)
         val list = (0 until rows).mapNotNull { k ->
             val line = src.lines.getOrNull(start + k) ?: return@mapNotNull null
-            if (k != focus && s.chance(0.07f)) {
-                val n = s.i(8, 56)
-                Row(segs = listOf(String(CharArray(n) { NOISE[s.i(0, NOISE.length)] }) to (if (s.chance(0.5f)) th.err else th.accent)), gutter = (start + k + 1).toString())
-            } else Row(line, gutter = (start + k + 1).toString())
+            when {
+                k == focus -> Row(segs = listOf(DREAD[s.i(0, DREAD.size)].toList().joinToString(" ") to Color.WHITE), bg = blood)
+                k != focus && s.chance(0.05f) -> Row(segs = listOf(DREAD[s.i(0, DREAD.size)] to th.err), gutter = "!")
+                s.chance(0.07f) -> {
+                    val n = s.i(8, 56)
+                    Row(segs = listOf(String(CharArray(n) { NOISE[s.i(0, NOISE.length)] }) to (if (s.chance(0.5f)) th.err else th.accent)), gutter = "?")
+                }
+                s.chance(0.09f) -> Row(line.reversed().trimEnd(), gutter = (start + k + 1).toString())
+                else -> Row(line, gutter = (start + k + 1).toString())
+            }
         }
-        s.drawRows(list, th, 19f, lead, 5, 0.24f, 0.4f, 0.07f, focus, cursor = true, bar = true)
-        repeat(s.i(3, 7)) {
+        s.drawRows(list, th, 19f, lead, 5, 0.3f, 0.6f, 0.015f, focus, cursor = true, bar = false, rot = 0.18f)
+        repeat(s.i(4, 9)) {
             val y = s.f(0f, s.h)
-            s.canvas.drawRect(s.f(0f, s.w * 0.6f), y, s.f(s.w * 0.4f, s.w), y + s.f(10f, 60f), s.fill(Color.BLACK))
+            s.canvas.drawRect(s.f(0f, s.w * 0.6f), y, s.f(s.w * 0.4f, s.w), y + s.f(8f, 70f), s.fill(Color.BLACK))
         }
     }
 }
@@ -841,7 +933,7 @@ private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 6f, 12, 80f)
 private object CodeBuild : CodeStyle("code_build", "Build Log", 3.6f, 4, 50f) {
     private val TASKS = listOf("preBuild", "compileDebugKotlin", "mergeDebugAssets", "dexBuilderDebug", "processDebugResources", "packageDebug", "lintVitalRelease", "minifyReleaseWithR8")
     private val WARNINGS = listOf("Variable '%s' is never used", "Unnecessary safe call on a non-null receiver", "Parameter '%s' is never used", "'%s' is deprecated")
-    private val ERRORS = listOf("Unresolved reference: sparkle", "Type mismatch: inferred type is Int but Float was expected", "Expecting a top level declaration")
+    private val ERRORS = listOf("Unresolved reference: sparkle", "Unresolved reference: meow 🐈", "Type mismatch: inferred type is Int but Float was expected", "Expecting a top level declaration")
 
     override fun paintCode(s: Scene) {
         val th = s.codeTheme()
@@ -855,7 +947,7 @@ private object CodeBuild : CodeStyle("code_build", "Build Log", 3.6f, 4, 50f) {
                 in 0..3 -> list += Row(segs = listOf("> Task " to th.punct, ":app:${TASKS[s.i(0, TASKS.size)]}" to th.fn, (if (s.chance(0.3f)) " UP-TO-DATE" else "") to green))
                 in 4..6 -> list += Row(segs = listOf("w: " to th.num, "file:///app/gen/$f:${s.i(8, 400)}:${s.i(3, 40)} " to th.comment, WARNINGS[s.i(0, WARNINGS.size)].replace("%s", listOf("size", "rot", "fill", "alpha")[s.i(0, 4)]) to th.plain))
                 7 -> list += Row(segs = listOf("e: " to th.err, "file:///app/gen/$f:${s.i(8, 400)}:${s.i(3, 40)} " to th.comment, ERRORS[s.i(0, ERRORS.size)] to th.err), bg = Color.argb(60, 255, 40, 80))
-                8 -> { val n = s.i(2, 20); list += Row(segs = listOf("[" to th.punct, "█".repeat(n) to th.accent, "░".repeat(20 - n) to th.comment, "] ${n * 5}%" to th.plain)) }
+                8 -> if (s.chance(0.3f)) list += Row(segs = listOf("> Task " to th.punct, ":app:feedTheCat 🐈" to th.fn)) else { val n = s.i(2, 20); list += Row(segs = listOf("[" to th.punct, "█".repeat(n) to th.accent, "░".repeat(20 - n) to th.comment, "] ${n * 5}%" to th.plain)) }
                 else -> list += Row(segs = listOf((if (s.chance(0.5f)) "BUILD SUCCESSFUL" else "BUILD FAILED") to green, " in ${s.i(1, 3)}m ${s.i(1, 59)}s" to th.plain))
             }
         }
