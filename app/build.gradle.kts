@@ -83,4 +83,5 @@ val copyCodeAssets by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/codeAssets/code"))
 }
 android.sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/codeAssets"))
-tasks.matching { it.name.matches(Regex("(merge|generate|package|lint).*Assets|lintVital.*|lintAnalyze.*")) }.configureEach { dependsOn(copyCodeAssets) }
+// Every other task may read the assets directory (lint models included), so the copy simply runs first.
+tasks.configureEach { if (name != "copyCodeAssets" && name != "clean") dependsOn(copyCodeAssets) }
