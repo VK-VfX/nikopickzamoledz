@@ -50,6 +50,35 @@ private fun Path.starPoly(cx: Float, cy: Float, r: Float, points: Int, step: Int
     }
 }
 
+/** The wolf on the Moon card: one outline in a 100-unit box, feet at y = 96. */
+private val TAROT_WOLF = floatArrayOf(
+    8f, 16f, 11f, 12f, 17f, 10f, 23f, 10f, 27f, 13f, 30f, 11f,
+    30f, 6f, 33f, -3f, 37f, 5f, 39f, 10f,
+    41f, 14f, 44f, 20f, 48f, 26f, 54f, 31f, 61f, 35f, 68f, 37f, 76f, 39f, 84f, 40f, 90f, 43f, 93f, 47f,
+    96f, 53f, 98f, 63f, 98f, 74f, 95f, 85f, 91f, 95f, 89f, 89f, 88f, 78f, 88f, 67f, 87f, 60f,
+    86f, 64f, 84f, 72f, 86f, 80f, 85f, 90f, 88f, 96f, 80f, 96f, 79f, 90f, 78f, 82f, 77f, 74f, 73f, 67f,
+    66f, 62f, 60f, 61f,
+    59f, 68f, 58f, 80f, 59f, 90f, 62f, 96f, 53f, 96f, 52f, 90f, 52f, 80f, 50f, 70f, 47f, 64f,
+    44f, 66f, 43f, 62f, 40f, 64f, 39f, 58f, 36f, 60f, 35f, 53f, 31f, 54f, 30f, 47f, 27f, 48f, 26f, 41f,
+    24f, 33f, 22f, 27f, 20f, 23f,
+    14f, 24f, 11f, 22f, 16f, 20f, 22f, 18.5f, 15f, 17.5f,
+)
+
+/** A wolf with its feet at (x, groundY), [height] tall, facing left (or right when [flip]). */
+private fun wolfPath(x: Float, groundY: Float, height: Float, flip: Boolean): Path {
+    val k = height / 96f
+    val sgn = if (flip) -1f else 1f
+    val p = Path()
+    for (i in 0 until TAROT_WOLF.size / 2) {
+        val px = x + (TAROT_WOLF[i * 2] - 50f) * k * sgn
+        val py = groundY + (TAROT_WOLF[i * 2 + 1] - 96f) * k
+        if (i == 0) p.moveTo(px, py) else p.lineTo(px, py)
+    }
+    p.close()
+    return p
+}
+
+
 // ---------------------------------------------------------------------------------------------
 
 /** A summoning circle: runes between double rings, a star polygon, and a sigil at its heart. */

@@ -21,6 +21,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -255,6 +256,7 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
             Surface(
                 shape = RoundedCornerShape(36.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
                 shadowElevation = 12.dp,
                 modifier = Modifier
                     .navigationBarsPadding()
@@ -429,7 +431,7 @@ private fun CustomizePanel(
             }
         }
         // Arrangement only changes styles that lay doodles out across the page.
-        if (spec.style.category == Category.DOODLE) {
+        if (spec.style.category == Category.DOODLE || spec.style.category == Category.LAB) {
             SectionLabel("Arrangement")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
                 items(DoodleLayout.choices, key = { it.id }) { l ->
@@ -529,6 +531,7 @@ private fun TopControls(spec: WallpaperSpec, favorite: Boolean, onBack: () -> Un
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
             modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
         ) {
             Row(

@@ -27,6 +27,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -186,7 +187,9 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
         containerColor = Color.Black,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+            Column {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.07f)))
+            NavigationBar(containerColor = Color.Black, tonalElevation = 0.dp) {
                 HomeTab.entries.forEach { t ->
                     val selected = state.tab == t
                     NavigationBarItem(
@@ -204,6 +207,7 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
                         label = { Text(t.label) },
                     )
                 }
+            }
             }
         },
         floatingActionButton = {
@@ -337,6 +341,19 @@ private fun FeedEnd(count: Int, onShuffle: () -> Unit) {
     }
 }
 
+/** A small rounded label for a headline number. */
+@Composable
+private fun StatPill(text: String) {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
+}
+
 @Composable
 private fun HeroHeader(onShuffle: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -347,7 +364,7 @@ private fun HeroHeader(onShuffle: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                "${greeting()} · ${Styles.all.size} styles",
+                greeting(),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -357,6 +374,11 @@ private fun HeroHeader(onShuffle: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
+                StatPill("${Styles.all.size} wallpapers")
+                StatPill("${Styles.categories.size} worlds")
+                StatPill("4K")
+            }
         }
         FilledTonalIconButton(
             onClick = {
@@ -485,6 +507,7 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
         shape = shape,
         interactionSource = interaction,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
         modifier = modifier.fillMaxWidth().height(420.dp).pressScale(interaction, 0.96f),
     ) {
         Box(Modifier.fillMaxSize().sharedWallpaper(spec.key, shape)) {
@@ -609,6 +632,7 @@ fun WallpaperCard(
         shape = shape,
         interactionSource = interaction,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(Screen.aspect)
@@ -703,6 +727,7 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
         shape = RoundedCornerShape(28.dp),
         interactionSource = interaction,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)),
         modifier = Modifier
             .fillMaxWidth()
             .height(210.dp)
@@ -731,6 +756,11 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
                 ShapeIcon(category, active = pressed, size = 52.dp, container = container, content = onContainer)
                 Spacer(Modifier.weight(1f))
                 Text(category.label, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                Text(
+                    "${styles.size} wallpapers",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.55f),
+                ) 
                 Text(
                     Styles.subcategories(category).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,

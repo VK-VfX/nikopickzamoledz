@@ -156,89 +156,6 @@ object DataRain : Style("data_rain", "Data Rain", Category.GLITCH) {
 
 // ---------------------------------------------------------------------------------------------
 
-/**
- * Comic-book dimensions colliding: halftone dots, a starburst, speed lines, a shouted word, and
- * the printing plates knocked out of register, so every edge splits into cyan, magenta and yellow.
- */
-object DimensionSplit : Style("dimension_split", "Dimension Split", Category.GLITCH) {
-    override val autoPalettes = listOf("graffiti", "candy", "cyan", "hue", "sakura")
-    private val shouts = arrayOf("ZAP!", "BAM!", "WHAM!", "GLITCH!", "CRACK!", "WOW!", "SNAP!")
-
-    override fun draw(s: Scene) {
-        val c0 = s.color(0)
-        val c1 = s.color(1)
-        val c2 = s.color(2)
-        val cx = s.cx + s.f(-120f, 120f)
-        val cy = s.h * s.f(0.36f, 0.48f)
-        val radius = s.w * s.f(0.3f, 0.4f)
-        val word = shouts[s.i(0, shouts.size)]
-        val bmp = s.layer { l ->
-            // Ben-Day dots filling one corner, fading out as they run across the page.
-            val step = 24f / sqrt(l.density.coerceIn(0.5f, 1.8f))
-            var gy = 0
-            var y = 0f
-            while (y < l.h) {
-                var x = if (gy % 2 == 0) 0f else step / 2f
-                while (x < l.w) {
-                    val t = (1f - (x / l.w * 0.6f + y / l.h * 0.55f)).coerceIn(0f, 1f)
-                    if (t > 0.05f) l.canvas.drawCircle(x, y, step * 0.5f * t, l.fill(c2, 220))
-                    x += step
-                }
-                y += step * 0.866f
-                gy++
-            }
-            // Speed lines out from behind the burst.
-            repeat(l.count(70)) {
-                val a = l.f(0f, (2 * PI).toFloat())
-                val r0 = radius * l.f(1.05f, 1.5f)
-                val r1 = radius * l.f(1.7f, 3.4f)
-                l.canvas.drawLine(cx + cos(a) * r0, cy + sin(a) * r0, cx + cos(a) * r1, cy + sin(a) * r1, l.stroke(Color.WHITE, l.f(2f, 8f), l.i(70, 230)))
-            }
-            // The starburst.
-            val burst = Path()
-            val spikes = 22
-            for (k in 0 until spikes * 2) {
-                val r = radius * if (k % 2 == 0) l.f(1.15f, 1.4f) else 0.95f
-                val a = (PI * k / spikes).toFloat()
-                if (k == 0) burst.moveTo(cx + cos(a) * r, cy + sin(a) * r) else burst.lineTo(cx + cos(a) * r, cy + sin(a) * r)
-            }
-            burst.close()
-            l.canvas.drawPath(burst, l.fill(c1))
-            l.canvas.drawPath(burst, l.stroke(Color.WHITE, 7f))
-            // A halftone sphere in the middle: dot size follows the light.
-            val ds = 17f
-            var by = cy - radius * 0.85f
-            var row = 0
-            while (by < cy + radius * 0.85f) {
-                var bx = cx - radius * 0.85f + if (row % 2 == 0) 0f else ds / 2f
-                while (bx < cx + radius * 0.85f) {
-                    val dx = (bx - cx) / (radius * 0.85f)
-                    val dy = (by - cy) / (radius * 0.85f)
-                    val d = dx * dx + dy * dy
-                    if (d < 1f) {
-                        val shade = (0.5f - dx * 0.35f - dy * 0.4f + sqrt(1f - d) * 0.35f).coerceIn(0f, 1f)
-                        l.canvas.drawCircle(bx, by, ds * 0.5f * shade, l.fill(Color.WHITE))
-                    }
-                    bx += ds
-                }
-                by += ds * 0.866f
-                row++
-            }
-            l.canvas.drawCircle(cx, cy, radius * 0.85f, l.stroke(Color.WHITE, 6f))
-            // The shout.
-            val tp = l.textPaint(min(radius * 0.62f, l.w * 1.15f / word.length), Color.WHITE, Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD_ITALIC))
-            l.canvas.save()
-            l.canvas.rotate(l.f(-14f, 8f), cx, cy + radius * 1.55f)
-            l.canvas.drawText(word, cx + 7f, cy + radius * 1.62f + 7f, Paint(tp).apply { color = c0 })
-            l.canvas.drawText(word, cx, cy + radius * 1.62f, tp)
-            l.canvas.restore()
-        }
-        s.glitchComposite(bmp, split = 13f, tears = 3 + (s.density * 5f).toInt(), maxShift = 80f)
-    }
-}
-
-// ---------------------------------------------------------------------------------------------
-
 /** A megacity in the rain: towers edged in neon, glitching billboards, a targeting HUD and scanlines. */
 object NeonDystopia : Style("neon_dystopia", "Neon Dystopia", Category.GLITCH) {
     override val autoPalettes = listOf("graffiti", "cyan", "violet", "lava", "sakura", "hue")
@@ -334,5 +251,5 @@ object NeonDystopia : Style("neon_dystopia", "Neon Dystopia", Category.GLITCH) {
 }
 
 object GlitchWorld {
-    val styles: List<Style> = listOf(DimensionSplit, NeonDystopia)
+    val styles: List<Style> = listOf(NeonDystopia)
 }

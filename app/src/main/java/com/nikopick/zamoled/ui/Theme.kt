@@ -39,6 +39,8 @@ private val AppTypography = Typography().run {
         titleLarge = titleLarge.copy(fontWeight = FontWeight.SemiBold),
         titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold),
         labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelMedium = labelMedium.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp),
+        bodyMedium = bodyMedium.copy(letterSpacing = 0.15.sp),
     )
 }
 

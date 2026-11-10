@@ -4,20 +4,21 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **63 wallpapers across 13 worlds**, each with its own art direction
+- **67 wallpapers across 14 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
-  | Doodle    | Sticker Bomb (die-cut painted stickers slapped over one another), Gouache (loose painted shapes with spilled paint), Chalk (chalk on a blackboard, with coloured shading), Space Doodles, Doodle Bomb (packed sketchbook monsters), Gatti and Gatti Colour (painted cats with real coats) |
-  | For Pixel | Material 3 Expressive on pure black, in your phone's own Material You colours. Shapes (Bloom, Cookies, Shape Garden, Morph Grid, Blobs), Flow (Waves, Flow, Orbit) and Pattern (Pills, Dot Field, Arches, Sunburst, Stack) |
+  | Doodle    | Sticker Bomb, Gouache, Chalk, Space Doodles, and two cat styles: Cat Club (twelve breeds, from tabby and British Shorthair to Bengal, Siamese, calico, Sphynx, Maine Coon and Scottish Fold, each with its own markings and a different mood) and Cat Faces (big comic faces) |
+  | Lab       | Science emoji as stickers, gouache or chalk: Physics, Maths, Chemistry, Biology, Psychology, Philosophy, History, Space, Spirals & Radiation, and Everything (about 55 icons) |
+  | For Pixel | Material 3 Expressive on pure black, in your phone's own Material You colours. Shapes (Bloom, Cookies, Blobs), Flow (Waves, Flow), Pattern (Pills, Arches), Interface (Components: switches, sliders, chips, FAB and cards), Glow (Aura, Overlap) |
   | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
   | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
   | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
-  | Nature    | Howling Wolf (a wolf on a ledge against the moon, a pack on the far ridge), Northern Lights (curtains of rays over a lake), Moonlit Peaks (layered ranges), Starry Pines (Milky Way over a pine forest), Moon Path (the moon on open water) |
+  | Nature    | Northern Lights (curtains of rays over a lake), Moonlit Peaks (layered ranges), Starry Pines (Milky Way over a pine forest), Moon Path (the moon on open water) |
   | Abstract  | Starry Swirl (a Van Gogh homage), Liquid Marble, Ink Smoke |
   | Neon      | Neon Tunnel (rings rushing to a point), Neon Ribbons (twisting strands of light), Neon Storm (branching lightning), Neon Sign, Synthwave |
   | Mystic    | Arcane Circle (runes, star polygon, sigil), Zodiac Wheel (astrolabe of twelve constellations), Tarot (The Moon, The Star, The Sun in gold line), Crystal Cluster, Lunar Cycle |
   | City      | Rooftops (water tower, string lights, a cat on the ledge), Skyline |
-  | Glitch    | Data Rain (six looks: kana, binary, hex, depth, pixel snow, cascade), Dimension Split (comic-book halftone, a starburst and misregistered print), Neon Dystopia (a cyberpunk city with failing billboards, a HUD and scanlines) |
+  | Glitch    | Data Rain (six looks: kana, binary, hex, depth, pixel snow, cascade), Neon Dystopia (a cyberpunk city with failing billboards, a HUD and scanlines) |
   | Pixel Bits | Pixel Bits: Pixel Castle, Pixel Quest (hero, enemies, power-ups, underground), Pixel Space (dithered nebula, ringed planet, ships), Pixel City, Pixel Peaks |
   | Light     | Lantern Festival, Candlelight, Jellyfish, Fireflies |
 - **True black backgrounds.** Every wallpaper starts from `#000000`, and the editor shows a live **Pitch black %**: the share of pixels your OLED screen can switch off completely.

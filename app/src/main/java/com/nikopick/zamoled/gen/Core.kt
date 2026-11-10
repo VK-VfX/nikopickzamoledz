@@ -61,6 +61,7 @@ object Palettes {
 
 enum class Category(val label: String) {
     DOODLE("Doodle"),
+    LAB("Lab"),
     MATERIAL("For Pixel"),
     MINIMAL("Minimal"),
     GEOMETRIC("Geometric"),
@@ -296,8 +297,8 @@ object Renderer {
 object Styles {
     /** Styles shown in the app, grouped by world. */
     val all: List<Style> = listOf(
-        StickerBomb, Gouache, Chalk, SpaceDoodles, ComicPop, Gatti, GattiSketch,
-        M3Bloom, M3Cookies, M3Waves, M3Garden, M3Pills, M3Orbit, M3Arches, M3Dots, M3Sunburst, M3Morph, M3Blobs, M3Ribbons, M3Stack,
+        StickerBomb, Gouache, Chalk, SpaceDoodles, Gatti, GattiSketch,
+        M3Bloom, M3Cookies, M3Waves, M3Pills, M3Arches, M3Blobs, M3Ribbons, M3Components, M3Aura, M3Overlap,
         LoneTree, KoiPond, MoonFisher,
         CrystalCave, ArtDecoTower, FloatingIsle,
         AstronautDrift, RingedWorld, BlackHole, Eclipse,
@@ -307,7 +308,7 @@ object Styles {
         DataRain,
         PixelCastle, PixelQuest, PixelSpace, PixelCity, PixelLandscape,
         LanternFestival, Candles, Jellyfish, Fireflies,
-    ) + NatureWorld.styles + NeonWorld.styles + GlitchWorld.styles + MysticWorld.styles
+    ) + NatureWorld.styles + NeonWorld.styles + GlitchWorld.styles + MysticWorld.styles + LabWorld.styles
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(
@@ -329,21 +330,21 @@ object Styles {
     private val subcategories: Map<String, String> = mapOf(
         // Doodle
         "sticker_bomb" to "Sticker", "gouache" to "Painted", "chalk" to "Chalk",
-        "comic_pop" to "Comic",
         // Nature
-        "howling_wolf" to "Wildlife", "aurora_night" to "Sky", "starry_pines" to "Sky", "moon_path" to "Water", "moonlit_peaks" to "Land",
+        "aurora_night" to "Sky", "starry_pines" to "Sky", "moon_path" to "Water", "moonlit_peaks" to "Land",
         // Neon
         "neon_tunnel" to "Tubes", "neon_ribbons" to "Tubes", "neon_storm" to "Electric", "neon_sign" to "Signs", "synthwave" to "Retro",
         // Pixel Bits
         "pixel_castle" to "Scenes", "pixel_quest" to "Games", "pixel_space" to "Scenes", "pixel_city" to "Scenes", "pixel_landscape" to "Scenes",
         // Glitch
-        "data_rain" to "Signal", "dimension_split" to "Comic", "neon_dystopia" to "Cyberpunk",
+        "data_rain" to "Signal", "neon_dystopia" to "Cyberpunk",
         // Mystic
         "arcane_circle" to "Occult", "zodiac_wheel" to "Stars", "lunar_cycle" to "Stars", "tarot_card" to "Cards", "crystal_cluster" to "Crystals",
         // For Pixel
-        "m3_bloom" to "Shapes", "m3_cookies" to "Shapes", "m3_garden" to "Shapes", "m3_morph" to "Shapes", "m3_blobs" to "Shapes",
-        "m3_waves" to "Flow", "m3_ribbons" to "Flow", "m3_orbit" to "Flow",
-        "m3_pills" to "Pattern", "m3_dots" to "Pattern", "m3_arches" to "Pattern", "m3_sunburst" to "Pattern", "m3_stack" to "Pattern",
+        "m3_bloom" to "Shapes", "m3_cookies" to "Shapes", "m3_blobs" to "Shapes",
+        "m3_waves" to "Flow", "m3_ribbons" to "Flow",
+        "m3_pills" to "Pattern", "m3_arches" to "Pattern",
+        "m3_components" to "Interface", "m3_aura" to "Glow", "m3_overlap" to "Glow",
         "gatti" to "Cats", "gatti_sketch" to "Cats",
         "space_doodles" to "Space",
     )

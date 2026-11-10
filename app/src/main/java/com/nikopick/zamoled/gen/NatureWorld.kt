@@ -72,88 +72,6 @@ private fun Scene.treeLine(baseY: Float, minH: Float, maxH: Float, gap: Float, c
 
 // ---------------------------------------------------------------------------------------------
 
-/** The wolf, drawn as one outline in a 100-unit box (x right, y down, feet at y = 96), facing left. */
-internal val HOWL_WOLF = floatArrayOf(
-    8f, 16f, 11f, 12f, 17f, 10f, 23f, 10f, 27f, 13f, 30f, 11f,
-    30f, 6f, 33f, -3f, 37f, 5f, 39f, 10f,
-    41f, 14f, 44f, 20f, 48f, 26f, 54f, 31f, 61f, 35f, 68f, 37f, 76f, 39f, 84f, 40f, 90f, 43f, 93f, 47f,
-    96f, 53f, 98f, 63f, 98f, 74f, 95f, 85f, 91f, 95f, 89f, 89f, 88f, 78f, 88f, 67f, 87f, 60f,
-    86f, 64f, 84f, 72f, 86f, 80f, 85f, 90f, 88f, 96f, 80f, 96f, 79f, 90f, 78f, 82f, 77f, 74f, 73f, 67f,
-    66f, 62f, 60f, 61f,
-    59f, 68f, 58f, 80f, 59f, 90f, 62f, 96f, 53f, 96f, 52f, 90f, 52f, 80f, 50f, 70f, 47f, 64f,
-    44f, 66f, 43f, 62f, 40f, 64f, 39f, 58f, 36f, 60f, 35f, 53f, 31f, 54f, 30f, 47f, 27f, 48f, 26f, 41f,
-    24f, 33f, 22f, 27f, 20f, 23f,
-    14f, 24f, 11f, 22f, 16f, 20f, 22f, 18.5f, 15f, 17.5f,
-)
-
-/** A wolf with its feet at (x, groundY), [height] tall, facing left (or right when [flip]). */
-internal fun wolfPath(x: Float, groundY: Float, height: Float, flip: Boolean): Path {
-    val k = height / 96f
-    val sgn = if (flip) -1f else 1f
-    val p = Path()
-    for (i in 0 until HOWL_WOLF.size / 2) {
-        val px = x + (HOWL_WOLF[i * 2] - 50f) * k * sgn
-        val py = groundY + (HOWL_WOLF[i * 2 + 1] - 96f) * k
-        if (i == 0) p.moveTo(px, py) else p.lineTo(px, py)
-    }
-    p.close()
-    return p
-}
-
-/** A wolf howling at a big moon from a rocky ledge, with a pack on the far ridge as Detail goes up. */
-object HowlingWolf : Style("howling_wolf", "Howling Wolf", Category.NATURE) {
-    override val autoPalettes = listOf("mono", "ocean", "violet", "gold", "sunset", "sakura")
-
-    override fun draw(s: Scene) {
-        val tint = s.moonTone()
-        val flip = s.chance(0.5f)
-        val mr = s.w * s.f(0.2f, 0.27f)
-        val wolfH = s.h * s.f(0.23f, 0.27f)
-        val ground = s.h * s.f(0.66f, 0.72f)
-        val wx = s.cx + (if (flip) -1f else 1f) * s.f(40f, 130f)
-        val mx = wx + (if (flip) 1f else -1f) * s.f(20f, 110f)
-        val my = ground - wolfH * s.f(0.85f, 1.1f)
-        s.starSky(300, my + mr, 8)
-        s.moon(mx, my, mr, tint)
-
-        // The far ridge, lit from behind by the moon, with the pack along it.
-        val packN = ((s.density - 0.5f) * 3f).toInt().coerceIn(0, 3)
-        val far = ground - s.h * 0.05f
-        val (farLand, farLine) = s.ridge(far, 90f, 0.004f, s.f(0f, 40f), ridged = false)
-        s.canvas.drawPath(farLand, s.vGradient(far - 60f, far + 260f, darken(mix(tint, s.color(1), 0.4f), 0.9f), Color.BLACK))
-        s.canvas.drawPath(farLine, s.stroke(withAlpha(tint, 80), 1.8f))
-        repeat(packN) {
-            val px = s.f(40f, s.w - 40f)
-            s.canvas.drawPath(wolfPath(px, far + 6f, wolfH * s.f(0.2f, 0.3f), s.chance(0.5f)), s.fill(Color.BLACK))
-        }
-
-        // The ledge and the wolf on it.
-        val ledge = Path()
-        ledge.moveTo(-10f, s.h + 10f)
-        var x = -10f
-        while (x <= s.w + 10f) {
-            val near = abs(x - wx) / (s.w * 0.28f)
-            val y = ground + 6f + s.noise.fbm(x * 0.012f, 7f) * 22f + min(near, 1f) * min(near, 1f) * s.h * 0.05f
-            ledge.lineTo(x, y)
-            x += 8f
-        }
-        ledge.lineTo(s.w + 10f, s.h + 10f)
-        ledge.close()
-        val wolf = wolfPath(wx, ground + 6f, wolfH, flip)
-        // A thin rim of moonlight on the side facing the moon.
-        s.canvas.drawPath(wolf, s.stroke(withAlpha(lighten(tint, 0.3f), 150), 3.2f, 150, 4f))
-        s.canvas.drawPath(wolf, s.fill(Color.BLACK))
-        s.canvas.drawPath(wolf, s.stroke(Color.BLACK, 2.6f))
-        s.canvas.drawPath(ledge, s.fill(Color.BLACK))
-        s.canvas.drawPath(ledge, s.stroke(withAlpha(tint, 60), 1.6f))
-
-        // Pines crowd both edges of the frame.
-        s.treeLine(s.h * 0.86f, s.h * 0.1f, s.h * 0.2f, 64f / s.density.coerceAtLeast(0.5f), Color.BLACK)
-    }
-}
-
-// ---------------------------------------------------------------------------------------------
-
 /** Northern lights: curtains of vertical rays over a black ridge, mirrored in a still lake. */
 object NorthernLights : Style("aurora_night", "Northern Lights", Category.NATURE) {
     override val autoPalettes = listOf("aurora", "aurora", "ocean", "violet", "sakura")
@@ -340,5 +258,5 @@ object MoonPath : Style("moon_path", "Moon Path", Category.NATURE) {
 }
 
 object NatureWorld {
-    val styles: List<Style> = listOf(HowlingWolf, NorthernLights, MoonlitPeaks, StarryPines, MoonPath)
+    val styles: List<Style> = listOf(NorthernLights, MoonlitPeaks, StarryPines, MoonPath)
 }

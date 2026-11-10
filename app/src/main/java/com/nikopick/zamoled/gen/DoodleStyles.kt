@@ -30,6 +30,9 @@ enum class PenLook {
 
     /** Chalk: broken, dusty strokes with coloured hatching standing in for fills. */
     CHALK,
+
+    /** Cartoon: a flat fill under a clean, bold outline. No texture, no wobble. */
+    COMIC,
 }
 
 /**
@@ -49,7 +52,7 @@ class Pen(
     private val darkInk: Boolean = false,
     /** Light every filled shape as a volume instead of flooding it with a flat colour. */
     private val shaded: Boolean = false,
-    private val look: PenLook = PenLook.PLAIN,
+    val look: PenLook = PenLook.PLAIN,
 ) {
     val c: Canvas get() = s.canvas
     private val lineW = width
@@ -115,6 +118,7 @@ class Pen(
             PenLook.DIECUT -> c.drawPath(p, cutPaint)
             PenLook.PAINTED -> painted(p, fill, closed)
             PenLook.CHALK -> chalked(p, fill, closed)
+            PenLook.COMIC -> comic(p, fill, closed)
         }
     }
 
@@ -146,6 +150,14 @@ class Pen(
         c.drawPath(p, brushBleed)
     }
 
+    private val comicLine = s.stroke(ink, width * 1.15f, alpha)
+
+    private fun comic(p: Path, fill: Int, closed: Boolean) {
+        val colors = fillColors
+        if (closed && colors != null && fill >= 0) c.drawPath(p, s.fill(colors[fill % colors.size]))
+        c.drawPath(p, comicLine)
+    }
+
     private fun chalked(p: Path, fill: Int, closed: Boolean) {
         val colors = fillColors
         if (closed && colors != null && fill >= 0) {
@@ -168,7 +180,13 @@ class Pen(
     }
 
     private val handMade: Boolean get() = look != PenLook.PLAIN
-    private val marksDetail: Boolean get() = look == PenLook.PAINTED || look == PenLook.CHALK
+
+    /** True on the pass that draws the doodle's real detail (not its shadow or die-cut border). */
+    val detailed: Boolean get() = look == PenLook.PAINTED || look == PenLook.PLAIN || look == PenLook.CHALK || look == PenLook.COMIC
+
+    /** The outline width in this pen's unit space. */
+    val lw: Float get() = lineW
+    private val marksDetail: Boolean get() = look == PenLook.PAINTED || look == PenLook.CHALK || look == PenLook.COMIC
 
     fun path(p: Path, fill: Int = -1) {
         if (handMade) { shape(p, fill); return }
