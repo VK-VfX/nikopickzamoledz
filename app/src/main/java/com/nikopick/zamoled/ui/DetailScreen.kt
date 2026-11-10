@@ -80,6 +80,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -353,6 +354,8 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                             words = words,
                             onWords = { words = it.take(80).replace('|', ' ').replace('\n', ' ') },
                             onWordsDone = { spec = spec.copy(text = words.trim()) },
+                            onSafe = { spec = spec.copy(safe = it) },
+                            onWhite = { spec = spec.copy(white = it) },
                             onShare = { ShareLink.share(context, spec) },
                             onMore = { onMoreLikeThis(spec.styleId) },
                         )
@@ -511,6 +514,8 @@ private fun CustomizePanel(
     words: String,
     onWords: (String) -> Unit,
     onWordsDone: () -> Unit,
+    onSafe: (Boolean) -> Unit,
+    onWhite: (Boolean) -> Unit,
     onShare: () -> Unit,
     onMore: () -> Unit,
 ) {
@@ -518,13 +523,15 @@ private fun CustomizePanel(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 14.dp),
     ) {
-        SectionLabel("Palette")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-            item(key = "auto") {
-                PaletteSwatch(null, selected = spec.paletteId == "auto") { onPalette("auto") }
-            }
-            items(Palettes.choices, key = { it.id }) { p ->
-                PaletteSwatch(p, selected = spec.paletteId == p.id) { onPalette(p.id) }
+        if (spec.style.usesPalette) {
+            SectionLabel("Palette")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                item(key = "auto") {
+                    PaletteSwatch(null, selected = spec.paletteId == "auto") { onPalette("auto") }
+                }
+                items(Palettes.choices, key = { it.id }) { p ->
+                    PaletteSwatch(p, selected = spec.paletteId == p.id) { onPalette(p.id) }
+                }
             }
         }
         // Arrangement only changes styles that lay doodles out across the page.
@@ -575,6 +582,24 @@ private fun CustomizePanel(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth(),
             )
+            SectionLabel("Highlight")
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SegmentedButton(selected = !spec.white, onClick = { onWhite(false) }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Red") }
+                SegmentedButton(selected = spec.white, onClick = { onWhite(true) }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("White") }
+            }
+        }
+        // Widget-safe moves the picture below the launcher clock and weather; some styles are already built that way.
+        val built = spec.style.widgetSafe
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                SectionLabel("Widget-safe")
+                Text(
+                    if (built) "This design already keeps its focus clear of the widgets." else "Keeps the picture below your clock and weather widgets.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = built || spec.safe, onCheckedChange = onSafe, enabled = !built)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("Black level", Modifier.weight(1f))

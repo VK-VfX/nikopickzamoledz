@@ -5,7 +5,11 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.LinearGradient
 import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Shader
 import androidx.core.graphics.ColorUtils
 import kotlin.math.PI
 import kotlin.math.floor
@@ -37,6 +41,7 @@ object Palettes {
         Palette("candy", "Candy", intArrayOf(c(0xFFF47C7C), c(0xFFFFC97A), c(0xFF7FD8A8), c(0xFFC98BD6), c(0xFF9ED9E0))),
         Palette("graffiti", "Graffiti", intArrayOf(c(0xFFFF5E7E), c(0xFFFFA552), c(0xFF3EE6C1), c(0xFF4C8DFF), c(0xFFB36BFF))),
         Palette("hue", "Hue Shift", intArrayOf(c(0xFF00E5A0), c(0xFF2D7BFF), c(0xFF8C5CFF), c(0xFFFF3D7F))),
+        Palette("cyber", "Cyberpunk", intArrayOf(c(0xFF00E5FF), c(0xFFFF2BD6), c(0xFFFFB300), c(0xFF7C4DFF))),
     )
 
     /** Material You colours from the system theme; set by the app theme at startup. */
@@ -89,23 +94,30 @@ data class WallpaperSpec(
     val black: Float = 0f,
     /** The words to set, for styles that draw text. Empty means the style picks its own. */
     val text: String = "",
+    /** Widget-safe: the picture is laid out below the launcher clock and weather widgets. */
+    val safe: Boolean = false,
+    /** Words styles: highlight the key word in white instead of red. */
+    val white: Boolean = false,
 ) {
-    val key: String get() = "$styleId|$seed|$paletteId|$density|$layoutId|$black|${text.replace('|', ' ').replace('\n', ' ')}"
+    val key: String get() =
+        "$styleId|$seed|$paletteId|$density|$layoutId|$black|${text.replace('|', ' ').replace('\n', ' ')}|${(if (safe) "s" else "") + (if (white) "w" else "")}"
     val style: Style get() = Styles.byId(styleId)
     val palette: Palette get() = Palettes.resolve(paletteId, seed, style)
     val layout: DoodleLayout get() = DoodleLayout.resolve(layoutId, seed)
 
     companion object {
         fun fromKey(key: String): WallpaperSpec? {
-            // Four fields is the oldest format, five added arrangements, seven added black level and text.
-            val p = key.split('|', limit = 7)
-            if (p.size != 4 && p.size != 5 && p.size != 7) return null
+            // Four fields is the oldest format, five added arrangements, seven added black level and text,
+            // eight added the option letters (s = widget-safe, w = white highlight).
+            val p = key.split('|', limit = 8)
+            if (p.size != 4 && p.size != 5 && p.size != 7 && p.size != 8) return null
             val seed = p[1].toLongOrNull() ?: return null
             val density = p[3].toFloatOrNull() ?: return null
             // Favourites saved before arrangements existed used the jittered grid.
             val layout = if (p.size >= 5) p[4] else DoodleLayout.GRID.id
-            val black = if (p.size == 7) p[5].toFloatOrNull() ?: return null else 0f
-            return WallpaperSpec(p[0], seed, p[2], density, layout, black, if (p.size == 7) p[6] else "")
+            val black = if (p.size >= 7) p[5].toFloatOrNull() ?: return null else 0f
+            val opts = if (p.size == 8) p[7] else ""
+            return WallpaperSpec(p[0], seed, p[2], density, layout, black, if (p.size >= 7) p[6] else "", 's' in opts, 'w' in opts)
         }
     }
 }
@@ -184,6 +196,8 @@ class Scene(
     val layout: DoodleLayout = DoodleLayout.SCATTER,
     /** Custom words for styles that draw text; empty when the style should choose. */
     val text: String = "",
+    /** Words styles: the highlighted word is white (the rest dimmed) instead of red. */
+    val whiteWords: Boolean = false,
 ) {
 
     val cx: Float get() = w / 2f
@@ -264,30 +278,57 @@ abstract class Style(val id: String, val name: String, val category: Category) {
 
     /** True for styles that set the user's own words. */
     open val usesText: Boolean get() = false
+
+    /** False for styles whose colours are fixed, so the Palette row does nothing to them. */
+    open val usesPalette: Boolean get() = true
+
+    /** True for styles already composed around the launcher widgets, so Widget-safe has nothing to add. */
+    open val widgetSafe: Boolean get() = false
     abstract fun draw(s: Scene)
 }
 
 object Renderer {
     const val VIRTUAL_WIDTH = 1000f
 
+    /** Share of the screen height kept clear for the launcher clock and weather widgets. */
+    const val SAFE_TOP = 0.2f
+
     fun render(spec: WallpaperSpec, widthPx: Int, heightPx: Int): Bitmap {
         val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(Color.BLACK)
         val scale = widthPx / VIRTUAL_WIDTH
+        // Widget-safe: the picture is composed on the lower part of the screen and fades in under the widgets.
+        val shift = spec.safe && !spec.style.widgetSafe
+        val top = if (shift) (heightPx * SAFE_TOP).toInt() else 0
+        val artPx = heightPx - top
+        val layer = if (shift) canvas.saveLayer(0f, top.toFloat(), widthPx.toFloat(), heightPx.toFloat(), null) else -1
+        canvas.save()
+        canvas.translate(0f, top.toFloat())
         canvas.scale(scale, scale)
         val scene = Scene(
             canvas = canvas,
             w = VIRTUAL_WIDTH,
-            h = heightPx / scale,
+            h = artPx / scale,
             rnd = Random(spec.seed),
             palette = spec.palette,
             density = spec.density,
             noise = Noise(spec.seed),
             layout = spec.layout,
             text = spec.text,
+            whiteWords = spec.white,
         )
         spec.style.draw(scene)
+        canvas.restore()
+        if (shift) {
+            val feather = artPx * 0.12f
+            val fade = Paint().apply {
+                shader = LinearGradient(0f, top.toFloat(), 0f, top + feather, 0x00000000, -0x1000000, Shader.TileMode.CLAMP)
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+            }
+            canvas.drawRect(0f, top.toFloat(), widthPx.toFloat(), top + feather, fade)
+            canvas.restoreToCount(layer)
+        }
         if (spec.black > 0.01f) crush(bmp, spec.black)
         return bmp
     }
@@ -354,7 +395,7 @@ object Styles {
         NeonSign, Synthwave,
         Rooftops, Skyline, NightHighway,
         DataRain,
-        PixelCastle, PixelQuest, PixelSpace, PixelCity, PixelLandscape,
+        PixelCastle, PixelQuest, PixelSunset, PixelPlanet, PixelTrain, PixelLighthouse, PixelArcade,
         LanternFestival, Candles, Jellyfish, Fireflies,
     ) + NatureWorld.styles + NeonWorld.styles + GlitchWorld.styles + MysticWorld.styles + LabWorld.styles + WordsWorld.styles
 
@@ -368,7 +409,11 @@ object Styles {
         DoodleScatter, DoodlePattern, DoodleSpotlight, DoodleStickers,
         Aurora, MoonlitForest, MountainLake, NightBloom, NeonAlley, GlitchBust, ErrorWindows,
         TarotMoon, AllSeeingEye, CrystalBall, MoonPhases,
+        PixelSpace, PixelCity, PixelLandscape,
     )
+
+    /** Retired ids that now open as their replacement. */
+    private val aliases = mapOf("neon_dystopia" to "wet_street")
 
     /**
      * Sub-categories. Styles that share a label are browsed together; a style that is not
@@ -387,9 +432,10 @@ object Styles {
         // Neon
         "neon_tunnel" to "Tubes", "neon_ribbons" to "Tubes", "neon_storm" to "Electric", "neon_sign" to "Signs", "synthwave" to "Retro",
         // Pixel Bits
-        "pixel_castle" to "Scenes", "pixel_quest" to "Games", "pixel_space" to "Scenes", "pixel_city" to "Scenes", "pixel_landscape" to "Scenes",
+        "pixel_castle" to "Games", "pixel_quest" to "Games", "pixel_sunset" to "Scenes", "pixel_planet" to "Scenes",
+        "pixel_train" to "Scenes", "pixel_lighthouse" to "Scenes", "pixel_arcade" to "Games",
         // Glitch
-        "data_rain" to "Signal", "neon_dystopia" to "Cyberpunk",
+        "data_rain" to "Signal", "wet_street" to "Cyberpunk", "source_code" to "Code",
         // Mystic
         "arcane_circle" to "Occult", "zodiac_wheel" to "Stars", "lunar_cycle" to "Stars", "tarot_card" to "Cards", "crystal_cluster" to "Crystals",
         // For Pixel
@@ -401,7 +447,10 @@ object Styles {
         "space_doodles" to "Space",
     )
 
-    fun byId(id: String): Style = all.firstOrNull { it.id == id } ?: retired.firstOrNull { it.id == id } ?: all[0]
+    fun byId(id: String): Style {
+        val key = aliases[id] ?: id
+        return all.firstOrNull { it.id == key } ?: retired.firstOrNull { it.id == key } ?: all[0]
+    }
     fun of(category: Category): List<Style> = all.filter { it.category == category }
 
     /** The sub-category a style is browsed under. */

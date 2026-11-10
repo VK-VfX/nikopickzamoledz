@@ -12,8 +12,8 @@ android {
         applicationId = "com.nikopick.zamoled"
         minSdk = 29
         targetSdk = 35
-        versionCode = 22
-        versionName = "5.0.0"
+        versionCode = 23
+        versionName = "5.1.0"
     }
 
     // A permanent key (from GitHub Secrets in CI) signs every build, so each new APK installs as an
@@ -76,3 +76,11 @@ dependencies {
     implementation("androidx.graphics:graphics-shapes:1.0.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+
+// The Source Code wallpaper shows this app's real generator code, so the build copies it into the assets.
+val copyCodeAssets by tasks.registering(Copy::class) {
+    from("src/main/java/com/nikopick/zamoled/gen") { include("*.kt") }
+    into(layout.buildDirectory.dir("generated/codeAssets/code"))
+}
+android.sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/codeAssets"))
+tasks.matching { it.name.matches(Regex("(merge|generate|package|lint).*Assets|lintVital.*|lintAnalyze.*")) }.configureEach { dependsOn(copyCodeAssets) }

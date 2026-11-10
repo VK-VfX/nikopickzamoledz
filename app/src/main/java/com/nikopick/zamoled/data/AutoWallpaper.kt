@@ -23,6 +23,7 @@ class AutoWallpaperWorker(context: Context, params: WorkerParameters) : Coroutin
         val target = WallpaperTarget.entries.getOrElse(prefs.getInt(Prefs.AUTO_TARGET, WallpaperTarget.BOTH.ordinal)) { WallpaperTarget.BOTH }
         val spec = AutoWallpaper.pick(source, prefs.getStringSet("favorites", emptySet()).orEmpty()) ?: return Result.success()
         Screen.init(context)
+        com.nikopick.zamoled.gen.CodeSource.init(context.assets)
         return try {
             val bitmap = Renderer.render(spec, Screen.width, Screen.height)
             val ok = WallpaperActions.setWallpaper(context, bitmap, target)

@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import com.nikopick.zamoled.data.Screen
+import com.nikopick.zamoled.gen.CodeSource
 import com.nikopick.zamoled.data.ShareLink
 import com.nikopick.zamoled.ui.ZamoledApp
 import com.nikopick.zamoled.ui.ZamoledTheme
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         Screen.init(this)
+        CodeSource.init(assets)
         if (savedInstanceState == null) readLink(intent)
         setContent {
             ZamoledTheme {

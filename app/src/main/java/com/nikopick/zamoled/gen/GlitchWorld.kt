@@ -6,11 +6,17 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
+import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
+import android.content.res.AssetManager
+import java.util.regex.Pattern
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -19,13 +25,13 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** The Glitch world: corrupted signal, misprinted comics and a city that is coming apart. */
+/** The Glitch world: falling signal, a rain-soaked cyberpunk street and the source code that draws it all. */
 
 /** Draws into a transparent layer the same size as the picture, so it can be torn up afterwards. */
 private inline fun Scene.layer(draw: (Scene) -> Unit): Bitmap {
-    val bmp = Bitmap.createBitmap(canvas.width, canvas.height, Bitmap.Config.ARGB_8888)
-    val c = Canvas(bmp)
     val k = canvas.width / Renderer.VIRTUAL_WIDTH
+    val bmp = Bitmap.createBitmap(canvas.width, (h * k).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
     c.scale(k, k)
     draw(Scene(c, w, h, rnd, palette, density, noise, layout))
     return bmp
@@ -156,100 +162,450 @@ object DataRain : Style("data_rain", "Data Rain", Category.GLITCH) {
 
 // ---------------------------------------------------------------------------------------------
 
-/** A megacity in the rain: towers edged in neon, glitching billboards, a targeting HUD and scanlines. */
-object NeonDystopia : Style("neon_dystopia", "Neon Dystopia", Category.GLITCH) {
-    override val autoPalettes = listOf("graffiti", "cyan", "violet", "lava", "sakura", "hue")
-    private val signs = arrayOf("SYSTEM FAILURE", "NO SIGNAL", "404", "DREAM.EXE", "OVERRIDE", "LOGIN", "SECTOR 7")
+/**
+ * A wet cyberpunk street in one-point perspective. Towers close in from both sides toward a haze at the
+ * vanishing point, their edges lit in neon, vertical signs and windows in true perspective, a black road
+ * that mirrors every light, a lone figure under an umbrella and a hologram ad overhead. Glitch is rare
+ * and local: a couple of torn bands and a slight colour split, like a feed that is nearly stable.
+ */
+object WetStreet : Style("wet_street", "Wet Street", Category.GLITCH) {
+    override val autoPalettes = listOf("cyber", "cyber", "cyber", "hue", "graffiti", "sunset", "violet")
+
+    private const val F = 120f       // focal length: one world unit at depth 1 is this many canvas units
+    private const val CAM = 1.6f     // camera height above the road, in world units
+    private const val LAT = 5f       // lateral distance to the building faces
+
+    private val SIGNS = listOf("ラーメン", "ホテル", "酒場", "電脳", "薬局", "夜市", "未来", "BAR", "NOODLE", "24H", "OPEN", "病院", "NEON", "HOTEL", "MOTEL")
+    private val ADS = listOf("NEXUS", "VOLT", "HELIX", "ONYX", "LUMEN", "AXIOM", "KAIJU")
+
+    private class Cam(val vx: Float, val vy: Float) {
+        fun x(lat: Float, z: Float) = vx + lat / z * F
+        fun y(height: Float, z: Float) = vy + (CAM - height) / z * F
+    }
+
+    private class Tower(val side: Int, val z0: Float, val z1: Float, val lat: Float, val ht: Float, val color: Int, val empty: Boolean)
 
     override fun draw(s: Scene) {
-        val c0 = s.color(0)
-        val c1 = s.color(1)
-        val c2 = s.color(2)
-        val sign = signs[s.i(0, signs.size)]
-        val bmp = s.layer { l ->
-            val horizon = l.h * l.f(0.72f, 0.82f)
-            // The sky glows behind the city, so the towers read as black slabs against it.
-            l.softGlow(l.w * l.f(0.3f, 0.7f), horizon - l.h * 0.12f, l.w * 0.7f, c1, 110)
-            l.softGlow(l.w * l.f(0.2f, 0.8f), horizon - l.h * 0.05f, l.w * 0.5f, c0, 80)
-            // Towers, far to near: each a dark slab edged in neon, with lit windows.
-            for (layer in 0..2) {
-                val depth = layer / 2f
-                var x = -20f
-                while (x < l.w) {
-                    val wd = l.f(50f, 130f) * (0.7f + 0.6f * depth)
-                    val ht = l.f(l.h * 0.12f, l.h * 0.5f) * (0.55f + 0.6f * depth)
-                    val top = horizon - ht
-                    val edge = l.color(l.i(0, 3))
-                    l.canvas.drawRect(x, top, x + wd, l.h, l.fill(Color.BLACK))
-                    l.canvas.drawRect(x, top, x + wd, l.h, l.stroke(edge, 2f + 1.4f * depth, (150 + 100 * depth).toInt(), 4f))
-                    val chance = 0.26f * l.density.coerceIn(0.4f, 1.8f)
-                    var wy = top + 14f
-                    while (wy < horizon - 8f) {
-                        var wx = x + 8f
-                        while (wx < x + wd - 8f) {
-                            if (l.chance(chance)) l.canvas.drawRect(wx, wy, wx + 6f, wy + 11f, l.fill(if (l.chance(0.15f)) Color.WHITE else lighten(l.color(l.i(0, 3)), 0.25f), (170 + 85 * depth).toInt()))
-                            wx += 13f
-                        }
-                        wy += 20f
-                    }
-                    x += wd + l.f(-10f, 24f)
-                }
-            }
-            // Billboards, each one failing in its own way.
-            repeat(l.count(2) + 1) {
-                val bw = l.f(260f, 430f)
-                val bh = l.f(150f, 270f)
-                val bx = l.f(20f, l.w - bw - 20f)
-                val by = l.f(l.h * 0.2f, l.h * 0.55f)
-                val col = l.color(l.i(0, 3))
-                l.canvas.drawRect(bx, by, bx + bw, by + bh, l.vGradient(by, by + bh, withAlpha(col, 200), withAlpha(darken(col, 0.6f), 120)))
-                l.canvas.drawRect(bx, by, bx + bw, by + bh, l.stroke(lighten(col, 0.5f), 2.4f))
-                repeat(7) {
-                    val gy = l.f(by, by + bh)
-                    l.canvas.drawRect(bx, gy, bx + bw * l.f(0.2f, 1f), gy + l.f(2f, 9f), l.fill(if (l.chance(0.5f)) Color.BLACK else Color.WHITE, 120))
-                }
-                l.canvas.drawText(sign, bx + bw / 2f, by + bh / 2f + 10f, l.textPaint(bh * 0.18f, Color.WHITE, Typeface.MONOSPACE))
-            }
-            // Rain, slanting.
-            repeat(l.count(230)) {
-                val rx = l.f(-60f, l.w)
-                val ry = l.f(0f, l.h)
-                l.canvas.drawLine(rx, ry, rx + 16f, ry + 54f, l.stroke(Color.WHITE, 1.2f, l.i(20, 80)))
-            }
-            // Targeting HUD: corner brackets, a reticle, a column of readouts and bars.
-            val m = 46f
-            val len = 80f
-            for ((px, py, dx, dy) in listOf(floatArrayOf(m, m, 1f, 1f), floatArrayOf(l.w - m, m, -1f, 1f), floatArrayOf(m, l.h - m, 1f, -1f), floatArrayOf(l.w - m, l.h - m, -1f, -1f)).map { it.toList() }) {
-                l.canvas.drawLine(px, py, px + dx * len, py, l.stroke(c0, 3f))
-                l.canvas.drawLine(px, py, px, py + dy * len, l.stroke(c0, 3f))
-            }
-            val rx = l.cx + l.f(-100f, 100f)
-            val ry = l.h * l.f(0.3f, 0.5f)
-            l.canvas.drawCircle(rx, ry, 120f, l.stroke(c1, 2.4f, 200))
-            l.canvas.drawCircle(rx, ry, 70f, l.stroke(c1, 1.4f, 140))
-            for (k in 0 until 4) {
-                val a = (PI / 2 * k).toFloat()
-                l.canvas.drawLine(rx + cos(a) * 100f, ry + sin(a) * 100f, rx + cos(a) * 150f, ry + sin(a) * 150f, l.stroke(c1, 2.4f))
-            }
-            val tp = l.textPaint(22f, c2, Typeface.MONOSPACE, Paint.Align.LEFT)
-            repeat(l.count(7)) { k -> l.canvas.drawText("ERR 0x%04X // %s".format(l.i(0, 65535), if (l.chance(0.5f)) "LINK LOST" else "RETRY"), m + 10f, m + 130f + k * 30f, tp) }
-            repeat(4) { k ->
-                val by = l.h - m - 40f - k * 26f
-                l.canvas.drawRect(l.w - m - 220f, by, l.w - m, by + 12f, l.stroke(c0, 1.6f, 180))
-                l.canvas.drawRect(l.w - m - 220f, by, l.w - m - 220f + 220f * l.f(0.15f, 1f), by + 12f, l.fill(c0, 200))
+        val bmp = s.layer { street(it) }
+        s.glitchComposite(bmp, split = 2.4f, tears = 1 + (s.density * 2f).toInt(), maxShift = 30f)
+    }
+
+    private fun fade(h: Float, y: Float): Float {
+        // Detail dims toward the top of the screen, where the launcher puts its widgets.
+        val t = ((y - h * 0.1f) / (h * 0.2f)).coerceIn(0f, 1f)
+        return 0.25f + 0.75f * t * t * (3f - 2f * t)
+    }
+
+    private fun street(s: Scene) {
+        val cam = Cam(s.cx + s.f(-26f, 26f), s.h * s.f(0.43f, 0.46f))
+        val warm = s.color(2)
+        val cL = s.color(0)
+        val cR = s.color(1)
+        val canvas = s.canvas
+
+        // Haze at the end of the street: the one big soft light, and what the figure stands against.
+        val haze = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = RadialGradient(cam.vx, cam.vy + 30f, 360f, intArrayOf(withAlpha(mix(cL, cR, 0.5f), 120), withAlpha(cR, 40), 0), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+        }
+        canvas.drawCircle(cam.vx, cam.vy + 30f, 360f, haze)
+        canvas.drawCircle(cam.vx, cam.vy + 20f, 54f, s.fill(Color.WHITE, 85, 46f))
+
+        // The two walls of towers, laid out from the camera outward.
+        val towers = ArrayList<Tower>()
+        for (side in intArrayOf(-1, 1)) {
+            var z = 0.12f
+            while (z < 90f) {
+                val z1 = z + z * s.f(0.22f, 0.5f) + 0.05f
+                towers += Tower(side, z, z1, LAT + s.f(0f, 1.1f), s.f(9f, 44f), if (side < 0) cL else cR, s.chance(0.1f))
+                z = z1 + (if (s.chance(0.15f)) z * 0.1f else 0f)
             }
         }
-        s.glitchComposite(bmp, split = 7f, tears = 2 + (s.density * 4f).toInt(), maxShift = 46f)
-        // Scanlines, drawn last, thin and dark.
-        var y = 0f
-        val line = s.fill(Color.BLACK, 70)
-        while (y < s.h) {
-            s.canvas.drawRect(0f, y, s.w, y + 2.2f, line)
-            y += 6f
+        towers.sortByDescending { it.z0 }
+
+        val body = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(5, 6, 10) }
+        val path = Path()
+        val winPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val signs = ArrayList<Triple<Tower, Float, Float>>()      // tower, z centre, height
+
+        for (t in towers) {
+            if (t.empty) continue
+            val lat = t.side * t.lat
+            val xa = cam.x(lat, t.z0); val xb = cam.x(lat, t.z1)
+            val ga = cam.y(0f, t.z0); val gb = cam.y(0f, t.z1)
+            val ta = cam.y(t.ht, t.z0); val tb = cam.y(t.ht, t.z1)
+            path.reset()
+            path.moveTo(xa, ga); path.lineTo(xb, gb); path.lineTo(xb, tb); path.lineTo(xa, ta); path.close()
+            canvas.drawPath(path, body)
+            // Light from the street climbs the face a little way.
+            val rise = (ga - ta).coerceAtMost(900f)
+            val wash = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = LinearGradient(0f, ga, 0f, ga - rise, withAlpha(t.color, 64), 0, Shader.TileMode.CLAMP)
+            }
+            canvas.drawPath(path, wash)
+
+            // Windows, in perspective.
+            val pitch = maxOf(0.38f, (t.z1 - t.z0) / 6f)
+            val lit = 0.2f + 0.2f * s.density.coerceAtMost(1.6f)
+            val fog = (1f - t.z0 / 100f).coerceIn(0.2f, 1f)
+            var hg = 1.3f
+            while (hg < t.ht - 0.9f) {
+                var zc = t.z0 + pitch * 0.2f
+                while (zc + pitch * 0.6f < t.z1) {
+                    val cy = cam.y(hg + 0.3f, zc)
+                    val cx = cam.x(lat, zc)
+                    if (cx > -60f && cx < s.w + 60f && cy > -60f && cy < s.h + 60f && s.chance(lit)) {
+                        val zw = zc + pitch * 0.6f
+                        path.reset()
+                        path.moveTo(cam.x(lat, zc), cam.y(hg, zc)); path.lineTo(cam.x(lat, zw), cam.y(hg, zw))
+                        path.lineTo(cam.x(lat, zw), cam.y(hg + 0.6f, zw)); path.lineTo(cam.x(lat, zc), cam.y(hg + 0.6f, zc)); path.close()
+                        val tint = when (s.i(0, 10)) { in 0..4 -> warm; in 5..7 -> t.color; else -> Color.rgb(150, 205, 255) }
+                        winPaint.color = withAlpha(tint, (215 * fog * fade(s.h, cy)).toInt())
+                        canvas.drawPath(path, winPaint)
+                    }
+                    zc += pitch
+                }
+                hg += 1.1f
+            }
+
+            // A neon tube along the face on some towers.
+            if (s.chance(0.4f)) {
+                val hg2 = s.f(3f, minOf(t.ht - 1f, 20f))
+                val line = Path().apply { moveTo(cam.x(lat, t.z0), cam.y(hg2, t.z0)); lineTo(cam.x(lat, t.z1), cam.y(hg2, t.z1)) }
+                s.glowPath(line, withAlpha(lighten(t.color, 0.3f), 255), 1.6f + 3f / (t.z0 + 0.5f), alpha = (230 * fade(s.h, cam.y(hg2, t.z0))).toInt())
+            }
+
+            // Lit edges: the corner nearest the camera and the roofline.
+            val edge = 1.4f + 3.2f / (t.z0 + 0.6f)
+            val alpha = (230 * fade(s.h, ta.coerceAtLeast(s.h * 0.3f))).toInt()
+            if (xa in -300f..s.w + 300f) {
+                val v = Path().apply { moveTo(xa, ga); lineTo(xa, ta) }
+                canvas.drawPath(v, s.stroke(t.color, edge * 3.2f, 50, edge * 3f))
+                canvas.drawPath(v, s.stroke(lighten(t.color, 0.35f), edge, alpha))
+            }
+            val roof = Path().apply { moveTo(xa, ta); lineTo(xb, tb) }
+            canvas.drawPath(roof, s.stroke(t.color, edge * 2.4f, 40, edge * 2.4f))
+            canvas.drawPath(roof, s.stroke(lighten(t.color, 0.25f), edge * 0.8f, (alpha * 0.8f).toInt()))
+
+            if (t.z0 > 0.5f && t.z0 < 14f && s.chance(0.6f)) {
+                signs += Triple(t, s.f(t.z0 + (t.z1 - t.z0) * 0.25f, t.z0 + (t.z1 - t.z0) * 0.55f), s.f(2.6f, minOf(t.ht - 6f, 15f).coerceAtLeast(3f)))
+            }
+        }
+
+        // Vertical signs on the faces, drawn through a perspective matrix so their text leans with the wall.
+        val reflections = ArrayList<FloatArray>()
+        for ((t, zc, h0) in signs) {
+            val lat = t.side * (t.lat - 0.45f)
+            val sh = s.f(3f, 6.5f)
+            val zw = (t.z1 - t.z0) * 0.22f
+            val zL = if (t.side < 0) zc else zc + zw
+            val zR = if (t.side < 0) zc + zw else zc
+            val tl = floatArrayOf(cam.x(lat, zL), cam.y(h0 + sh, zL))
+            val tr = floatArrayOf(cam.x(lat, zR), cam.y(h0 + sh, zR))
+            val br = floatArrayOf(cam.x(lat, zR), cam.y(h0, zR))
+            val bl = floatArrayOf(cam.x(lat, zL), cam.y(h0, zL))
+            val cx = (tl[0] + br[0]) / 2f; val cy = (tl[1] + br[1]) / 2f
+            if (cx < -80f || cx > s.w + 80f || cy < -80f || cy > s.h + 80f) continue
+            val word = SIGNS[s.i(0, SIGNS.size)]
+            val col = s.color(s.i(0, 4))
+            val fa = fade(s.h, cy)
+            val quad = Path().apply { moveTo(tl[0], tl[1]); lineTo(tr[0], tr[1]); lineTo(br[0], br[1]); lineTo(bl[0], bl[1]); close() }
+            canvas.drawPath(quad, s.fill(col, (95 * fa).toInt(), 14f))
+            canvas.drawPath(quad, s.fill(Color.rgb(4, 4, 8), 230))
+            val tw = 70f
+            val cell = tw * 0.95f
+            val th = cell * word.length + 16f
+            val m = Matrix()
+            m.setPolyToPoly(floatArrayOf(0f, 0f, tw, 0f, tw, th, 0f, th), 0, floatArrayOf(tl[0], tl[1], tr[0], tr[1], br[0], br[1], bl[0], bl[1]), 0, 4)
+            canvas.save()
+            canvas.concat(m)
+            canvas.drawRect(3f, 3f, tw - 3f, th - 3f, s.stroke(lighten(col, 0.3f), 3.2f, (235 * fa).toInt()))
+            val tp = s.textPaint(tw * 0.7f, lighten(col, 0.6f), Typeface.DEFAULT_BOLD)
+            tp.alpha = (255 * fa).toInt()
+            for ((k, ch) in word.withIndex()) canvas.drawText(ch.toString(), tw / 2f, 8f + cell * (k + 0.78f), tp)
+            canvas.restore()
+            reflections += floatArrayOf(tl[0], tr[0], cam.y(-h0, zL), cam.y(-(h0 + sh), zL), cam.y(-h0, zR), cam.y(-(h0 + sh), zR), col.toFloat(), fa)
+        }
+
+        // The road: lane dashes, then everything above it mirrored and broken up by ripples.
+        var zd = 0.4f
+        while (zd < 60f) {
+            val zn = zd * 1.22f
+            val dash = Path().apply {
+                moveTo(cam.x(-0.07f, zd), cam.y(0f, zd)); lineTo(cam.x(0.07f, zd), cam.y(0f, zd))
+                lineTo(cam.x(0.07f, zn), cam.y(0f, zn)); lineTo(cam.x(-0.07f, zn), cam.y(0f, zn)); close()
+            }
+            canvas.drawPath(dash, s.fill(Color.WHITE, (70 / (1f + zd * 0.15f)).toInt()))
+            zd = zn * 1.18f
+        }
+        for (t in towers) {
+            if (t.empty || t.z0 < 0.3f) continue
+            val lat = t.side * t.lat
+            val rh = minOf(t.ht, 7f)
+            val q = Path().apply {
+                moveTo(cam.x(lat, t.z0), cam.y(0f, t.z0)); lineTo(cam.x(lat, t.z1), cam.y(0f, t.z1))
+                lineTo(cam.x(lat, t.z1), cam.y(-rh, t.z1)); lineTo(cam.x(lat, t.z0), cam.y(-rh, t.z0)); close()
+            }
+            val y0 = cam.y(0f, t.z0); val y1 = cam.y(-rh, t.z0)
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = LinearGradient(0f, y0, 0f, y1, withAlpha(t.color, 70), 0, Shader.TileMode.CLAMP)
+                maskFilter = android.graphics.BlurMaskFilter(7f, android.graphics.BlurMaskFilter.Blur.NORMAL)
+            }
+            canvas.drawPath(q, p)
+        }
+        for (r in reflections) {
+            val col = r[6].toInt()
+            val q = Path().apply { moveTo(r[0], r[2]); lineTo(r[1], r[4]); lineTo(r[1], r[5]); lineTo(r[0], r[3]); close() }
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = LinearGradient(0f, r[2], 0f, r[3], withAlpha(col, (120 * r[7]).toInt()), 0, Shader.TileMode.CLAMP)
+                maskFilter = android.graphics.BlurMaskFilter(9f, android.graphics.BlurMaskFilter.Blur.NORMAL)
+            }
+            canvas.drawPath(q, p)
+            // Ripples cut dark lines through the mirror.
+            repeat(7) {
+                val yy = s.f(minOf(r[2], r[3]), maxOf(r[2], r[3]))
+                val x0 = s.f(minOf(r[0], r[1]) - 14f, maxOf(r[0], r[1]))
+                canvas.drawLine(x0, yy, x0 + s.f(20f, 70f), yy, s.stroke(Color.BLACK, s.f(1.5f, 3.5f), 210))
+            }
+        }
+
+        // Cars far down the street: tail lights going away, headlights coming.
+        repeat(s.count(4)) {
+            val z = s.f(5f, 22f)
+            val lane = if (s.chance(0.5f)) 1.5f else -1.5f
+            val red = lane > 0f
+            val c = if (red) Color.rgb(255, 40, 70) else Color.rgb(215, 238, 255)
+            for (d in floatArrayOf(-0.62f, 0.62f)) {
+                val x = cam.x(lane + d, z); val y = cam.y(0.7f, z); val r = 0.13f * F / z
+                s.glowDot(x, y, r.coerceAtLeast(1.2f), c, r * 5f)
+                canvas.drawLine(x, cam.y(-0.7f, z), x, cam.y(-0.7f, z) + r * 14f, s.stroke(c, r * 1.6f, 90, r * 3f))
+            }
+        }
+
+        // A hologram ad hanging over the street.
+        run {
+            val z = s.f(3.1f, 4.2f)
+            val l = cam.x(-2.9f, z); val r = cam.x(2.9f, z)
+            val top = cam.y(8.6f, z); val bot = cam.y(5.4f, z)
+            val col = s.color(s.i(0, 3))
+            val panel = RectF(l, top, r, bot)
+            canvas.drawRect(panel, s.fill(col, 30, 18f))
+            canvas.drawRect(panel, s.stroke(lighten(col, 0.3f), 1.8f, 170))
+            var yy = top + 3f
+            while (yy < bot) { canvas.drawLine(l, yy, r, yy, s.stroke(col, 1f, 38)); yy += 5f }
+            val word = ADS[s.i(0, ADS.size)]
+            val tp = s.textPaint((r - l) / (word.length * 0.62f), lighten(col, 0.55f), Typeface.DEFAULT_BOLD)
+            tp.setShadowLayer(14f, 0f, 0f, col)
+            canvas.drawText(word, (l + r) / 2f, (top + bot) / 2f + tp.textSize * 0.34f, tp)
+            val small = s.textPaint((r - l) * 0.075f, withAlpha(col, 200), Typeface.MONOSPACE)
+            canvas.drawText("未来は今  //  2087", (l + r) / 2f, bot - 6f, small)
+        }
+
+        // The figure: a black coat and an umbrella against the haze, a pool of light at the feet.
+        run {
+            val z = s.f(2.3f, 2.9f)
+            val gx = cam.x(s.f(-0.5f, 0.5f), z); val gy = cam.y(0f, z); val u = F / z
+            canvas.drawOval(RectF(gx - 1.1f * u, gy - 0.1f * u, gx + 1.1f * u, gy + 0.22f * u), s.fill(mix(cL, cR, 0.5f), 70, u * 0.3f))
+            val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK }
+            val coat = Path().apply {
+                moveTo(gx - 0.3f * u, gy - 1.45f * u); lineTo(gx + 0.3f * u, gy - 1.45f * u)
+                lineTo(gx + 0.36f * u, gy - 0.5f * u); lineTo(gx - 0.36f * u, gy - 0.5f * u); close()
+            }
+            canvas.drawPath(coat, ink)
+            canvas.drawRect(gx - 0.2f * u, gy - 0.55f * u, gx - 0.05f * u, gy, ink)
+            canvas.drawRect(gx + 0.05f * u, gy - 0.55f * u, gx + 0.2f * u, gy, ink)
+            canvas.drawCircle(gx, gy - 1.6f * u, 0.12f * u, ink)
+            val dome = Path().apply { addArc(RectF(gx - 0.7f * u, gy - 2.3f * u, gx + 0.7f * u, gy - 1.55f * u), 180f, 180f); close() }
+            canvas.drawPath(dome, ink)
+            canvas.drawPath(dome, s.stroke(lighten(cL, 0.2f), 2f, 210, 3f))
+            canvas.drawLine(gx, gy - 1.93f * u, gx, gy - 1.5f * u, s.stroke(Color.BLACK, 0.04f * u))
+            canvas.drawLine(gx + 0.3f * u, gy - 1.45f * u, gx + 0.36f * u, gy - 0.5f * u, s.stroke(cR, 1.8f, 170))
+            repeat(3) {
+                val rr = s.f(0.2f, 0.7f) * u
+                canvas.drawOval(RectF(gx - rr + s.f(-0.5f, 0.5f) * u, gy + 0.02f * u, gx + rr + s.f(-0.5f, 0.5f) * u, gy + 0.02f * u + rr * 0.14f), s.stroke(Color.WHITE, 1.2f, 60))
+            }
+        }
+
+        // Rain, slanting, and a mist along the road.
+        repeat(s.count(300)) {
+            val x = s.f(-20f, s.w); val y = s.f(0f, s.h); val len = s.f(16f, 46f)
+            canvas.drawLine(x, y, x + len * 0.16f, y + len, s.stroke(Color.rgb(190, 225, 255), s.f(0.8f, 1.5f), s.i(18, 70)))
+        }
+        canvas.drawOval(RectF(cam.vx - 520f, cam.vy - 30f, cam.vx + 520f, cam.vy + 90f), s.fill(mix(cL, cR, 0.5f), 26, 70f))
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+
+/** Where Source Code finds real source: the app's own generator files, copied into the assets at build time. */
+object CodeSource {
+    @Volatile
+    private var loader: ((String) -> String?)? = null
+
+    @Volatile
+    var names: List<String> = emptyList()
+        private set
+
+    private val cache = object : LinkedHashMap<String, String>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 4
+    }
+
+    fun init(assets: AssetManager) {
+        if (loader != null) return
+        val list = runCatching { assets.list("code")?.filter { it.endsWith(".kt") }?.sorted() }.getOrNull().orEmpty()
+        names = list
+        loader = { n -> runCatching { assets.open("code/$n").bufferedReader().use { it.readText() } }.getOrNull() }
+    }
+
+    /** For desktop previews: read the same files straight from a folder. */
+    fun init(dir: java.io.File) {
+        names = dir.listFiles { f -> f.name.endsWith(".kt") }?.map { it.name }?.sorted().orEmpty()
+        loader = { n -> runCatching { java.io.File(dir, n).readText() }.getOrNull() }
+    }
+
+    fun read(name: String): String? = synchronized(cache) {
+        cache[name] ?: loader?.invoke(name)?.also { cache[name] = it }
+    }
+
+    /** Used when the files are not available: the camera maths behind Wet Street. */
+    val FALLBACK = """
+        private class Cam(val vx: Float, val vy: Float) {
+            fun x(lat: Float, z: Float) = vx + lat / z * F
+            fun y(height: Float, z: Float) = vy + (CAM - height) / z * F
+        }
+
+        // One-point perspective: depth z shrinks everything toward the vanishing point.
+        for (t in towers) {
+            val lat = t.side * t.lat
+            val xa = cam.x(lat, t.z0)
+            val xb = cam.x(lat, t.z1)
+            path.moveTo(xa, cam.y(0f, t.z0))
+            path.lineTo(xb, cam.y(0f, t.z1))
+            path.lineTo(xb, cam.y(t.ht, t.z1))
+            path.lineTo(xa, cam.y(t.ht, t.z0))
+            path.close()
+            canvas.drawPath(path, body)
+        }
+
+        // The road is black glass: mirror every light about the ground line.
+        val mirrored = cam.y(-height, z)
+        canvas.drawLine(x, cam.y(-0.7f, z), x, mirrored, glow)
+    """.trimIndent()
+}
+
+/**
+ * The code that draws the wallpapers, as the wallpaper: real source from this app's generators, set in a
+ * monospaced editor on pure black with syntax colour, brightest at the line in focus. Four looks: an
+ * editor, a git diff, a terminal and a single glowing passage.
+ */
+object SourceCode : Style("source_code", "Source Code", Category.GLITCH) {
+    override val autoPalettes = listOf("aurora", "cyan", "cyber", "violet", "acid", "mono", "sunset", "hue")
+    override val usesDetail: Boolean get() = false
+    override val widgetSafe: Boolean get() = true
+
+    private val KEYWORDS = setOf(
+        "val", "var", "fun", "object", "class", "interface", "private", "internal", "override", "abstract", "open", "return",
+        "if", "else", "for", "while", "when", "in", "is", "as", "import", "package", "repeat", "true", "false", "null",
+        "const", "data", "enum", "companion", "this", "by", "get", "set", "init", "inline", "lateinit", "break", "continue", "do",
+    )
+    private val TOKEN: Pattern = Pattern.compile("(//.*)|(\"(?:\\\\.|[^\"\\\\])*\")|(0x[0-9A-Fa-f]+[LlUu]*|\\d[\\d_]*(?:\\.\\d+)?[fFLl]?)|([A-Za-z_][A-Za-z0-9_]*)|(\\s+)|(.)")
+    private val DECL = Regex("^\\s*(private |internal |override |abstract )*(object|fun|class)\\b")
+
+    private class Look(val gutter: Boolean, val diff: Boolean, val terminal: Boolean, val sigma: Float, val floor: Float)
+
+    override fun draw(s: Scene) {
+        val look = when (s.i(0, 4)) {
+            0 -> Look(gutter = true, diff = false, terminal = false, sigma = 0.2f, floor = 0.22f)
+            1 -> Look(gutter = true, diff = true, terminal = false, sigma = 0.22f, floor = 0.26f)
+            2 -> Look(gutter = false, diff = false, terminal = true, sigma = 0.24f, floor = 0.24f)
+            else -> Look(gutter = false, diff = false, terminal = false, sigma = 0.09f, floor = 0.09f)
+        }
+        val name = CodeSource.names.takeIf { it.isNotEmpty() }?.let { it[s.i(0, it.size)] }
+        val text = name?.let { CodeSource.read(it) } ?: CodeSource.FALLBACK
+        val all = text.replace("\t", "    ").lines()
+
+        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
+        val size = 19f
+        val lead = 27.5f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = Typeface.MONOSPACE }
+        val adv = paint.measureText("M")
+        val margin = 26f
+        val gutterW = if (look.gutter) adv * 4.6f else 0f
+        val codeX = margin + gutterW
+        val cols = ((s.w - codeX - margin) / adv).toInt()
+        val rows = ((s.h - margin * 2f) / lead).toInt()
+        val focusY = s.h * 0.4f
+        val focusRow = ((focusY - margin) / lead).toInt()
+
+        val salt = s.i(0, 1_000_000)
+        val decls = all.indices.filter { DECL.containsMatchIn(all[it]) }
+        val pick = if (decls.isEmpty()) 0 else decls[s.i(0, decls.size)]
+        val start = (pick - focusRow).coerceIn(0, maxOf(0, all.size - rows))
+        val focusLine = pick - start
+
+        // Terminal: a prompt and the command that printed the file.
+        val header = if (look.terminal) listOf("zamoled@amoled:~/gen$ cat ${name ?: "WetStreet.kt"}") else emptyList()
+
+        for (row in 0 until rows) {
+            val y = margin + lead * (row + 1) - 6f
+            val lum = look.floor + (1f - look.floor) * Math.exp(-Math.pow(((y - focusY) / (s.h * look.sigma)).toDouble(), 2.0)).toFloat()
+            val idx = start + row
+            if (idx >= all.size && row >= header.size) break
+            if (row < header.size) {
+                paint.color = withAlpha(Color.rgb(60, 255, 140), (255 * lum).toInt())
+                s.canvas.drawText(header[row], codeX, y, paint)
+                continue
+            }
+            val src = idx - header.size
+            if (src < 0 || src >= all.size) continue
+            val line = all[src]
+            val shown = if (line.length > cols) line.substring(0, cols) else line
+
+            val tag = if (look.diff) when (((src + salt) * 2654435761L ushr 7) % 100) { in 0L..21L -> 1; in 22L..30L -> -1; else -> 0 } else 0
+            if (row == focusLine && look.gutter && !look.diff) s.canvas.drawRect(0f, y - lead + 6f, s.w, y + 6f, s.fill(c0, 26))
+            if (tag != 0) s.canvas.drawRect(0f, y - lead + 6f, s.w, y + 6f, s.fill(if (tag > 0) Color.rgb(0, 230, 118) else Color.rgb(255, 61, 87), (46 * lum + 10).toInt()))
+
+            if (look.gutter) {
+                paint.color = withAlpha(if (row == focusLine) c0 else Color.rgb(120, 125, 135), (200 * lum).toInt().coerceAtLeast(40))
+                paint.textAlign = Paint.Align.RIGHT
+                val label = if (tag > 0) "+" else if (tag < 0) "-" else (src + 1).toString()
+                s.canvas.drawText(label, margin + gutterW - adv * 1.2f, y, paint)
+                paint.textAlign = Paint.Align.LEFT
+            }
+
+            val doc = line.trimStart().let { it.startsWith("/**") || it.startsWith("*") || it.startsWith("//") }
+            val m = TOKEN.matcher(shown)
+            var col = 0
+            while (m.find()) {
+                val tok = m.group()
+                val color = when {
+                    doc || m.group(1) != null -> Color.rgb(98, 118, 108)
+                    m.group(2) != null -> c1
+                    m.group(3) != null -> c2
+                    m.group(4) != null -> when {
+                        tok in KEYWORDS -> c0
+                        tok[0].isUpperCase() -> lighten(c1, 0.35f)
+                        shown.getOrNull(m.end()) == '(' -> lighten(c2, 0.55f)
+                        else -> Color.rgb(212, 216, 224)
+                    }
+                    m.group(6) != null -> if (tok == "@") c2 else Color.rgb(132, 138, 150)
+                    else -> Color.TRANSPARENT
+                }
+                if (m.group(5) == null) {
+                    val a = (255 * lum).toInt()
+                    paint.color = withAlpha(color, a)
+                    if (lum > 0.9f && m.group(4) != null && tok in KEYWORDS) paint.setShadowLayer(9f, 0f, 0f, withAlpha(color, 190)) else paint.clearShadowLayer()
+                    s.canvas.drawText(tok, codeX + col * adv, y, paint)
+                }
+                col += tok.length
+            }
+            paint.clearShadowLayer()
+            if (row == focusLine && (look.gutter || look.terminal)) {
+                s.canvas.drawRect(codeX + col * adv + adv * 0.3f, y - size * 0.82f, codeX + col * adv + adv * 1.1f, y + 4f, s.fill(c0, 230, 5f))
+            }
         }
     }
 }
 
 object GlitchWorld {
-    val styles: List<Style> = listOf(NeonDystopia)
+    val styles: List<Style> = listOf(WetStreet, SourceCode)
 }

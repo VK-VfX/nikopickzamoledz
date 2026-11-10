@@ -214,7 +214,7 @@ object PixelCastle : Style("pixel_castle", "Pixel Castle", Category.PIXEL) {
         val cols = (s.w / pp.px).toInt() + 1
         val rows = (s.h / pp.px).toInt() + 1
         pp.stars(160, rows / 2)
-        pp.disc((cols * s.f(0.65f, 0.85f)).toInt(), (rows * 0.15f).toInt(), 7, lighten(s.color(0), 0.6f))
+        pp.disc((cols * s.f(0.65f, 0.85f)).toInt(), (rows * 0.33f).toInt(), 7, lighten(s.color(0), 0.6f))
         // Hill.
         val hillTop = IntArray(cols) { x -> (rows * 0.66f - (1f - abs(s.noise.fbm(x * 0.03f, 4f))) * rows * 0.14f).toInt() }
         val grass = mix(s.color(2), Color.rgb(80, 180, 100), 0.6f)
