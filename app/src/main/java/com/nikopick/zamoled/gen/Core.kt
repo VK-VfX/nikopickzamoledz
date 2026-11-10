@@ -435,7 +435,8 @@ object Styles {
         "pixel_castle" to "Games", "pixel_quest" to "Games", "pixel_sunset" to "Scenes", "pixel_planet" to "Scenes",
         "pixel_train" to "Scenes", "pixel_lighthouse" to "Scenes", "pixel_arcade" to "Games",
         // Glitch
-        "data_rain" to "Signal", "wet_street" to "Cyberpunk", "source_code" to "Code",
+        "data_rain" to "Signal", "wet_street" to "Cyberpunk", "source_code" to "Code", "code_diff" to "Code", "code_panic" to "Code", "code_hex" to "Code", "code_fall" to "Code",
+        "code_poster" to "Code", "code_corrupt" to "Code", "code_build" to "Code",
         // Mystic
         "arcane_circle" to "Occult", "zodiac_wheel" to "Stars", "lunar_cycle" to "Stars", "tarot_card" to "Cards", "crystal_cluster" to "Crystals",
         // For Pixel

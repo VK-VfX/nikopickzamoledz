@@ -492,120 +492,377 @@ object CodeSource {
     """.trimIndent()
 }
 
+// ---------------------------------------------------------------------------------------------
+// Code wallpapers: the app's own generator source, set in loud syntax colour and then torn up.
+// ---------------------------------------------------------------------------------------------
+
+/** Colours for one code wallpaper, pushed to full saturation so they stay striking on black. */
+private class CodeTheme(
+    val kw: Int, val str: Int, val num: Int, val type: Int, val fn: Int, val accent: Int,
+    val comment: Int, val plain: Int, val punct: Int, val err: Int,
+)
+
+private fun vivid(c: Int): Int {
+    val hsv = FloatArray(3)
+    Color.colorToHSV(c, hsv)
+    if (hsv[1] < 0.15f) return c                      // greys stay grey (the Mono palette)
+    hsv[1] = hsv[1].coerceAtLeast(0.78f)
+    hsv[2] = 1f
+    return Color.HSVToColor(hsv)
+}
+
+private fun turn(c: Int, degrees: Float): Int {
+    val hsv = FloatArray(3)
+    Color.colorToHSV(c, hsv)
+    if (hsv[1] < 0.15f) return c
+    hsv[0] = (hsv[0] + degrees + 360f) % 360f
+    return Color.HSVToColor(hsv)
+}
+
+private fun Scene.codeTheme(): CodeTheme {
+    val a = vivid(color(0)); val b = vivid(color(1)); val c = vivid(color(2))
+    val d = if (palette.colors.size > 3) vivid(color(3)) else turn(a, 150f)
+    return CodeTheme(
+        kw = a, str = b, num = c, type = turn(a, -45f), fn = d, accent = a,
+        comment = Color.rgb(104, 118, 135), plain = Color.rgb(236, 240, 250), punct = Color.rgb(146, 156, 176),
+        err = Color.rgb(255, 40, 80),
+    )
+}
+
+private val VIVID = listOf("cyber", "cyber", "hue", "graffiti", "aurora", "acid", "lava", "violet", "cyan")
+
+private val KEYWORDS = setOf(
+    "val", "var", "fun", "object", "class", "interface", "private", "internal", "override", "abstract", "open", "return",
+    "if", "else", "for", "while", "when", "in", "is", "as", "import", "package", "repeat", "true", "false", "null",
+    "const", "data", "enum", "companion", "this", "by", "get", "set", "init", "inline", "lateinit", "break", "continue", "do",
+)
+private val TOKEN: Pattern = Pattern.compile("(//.*)|(\"(?:\\\\.|[^\"\\\\])*\")|(0x[0-9A-Fa-f]+[LlUu]*|\\d[\\d_]*(?:\\.\\d+)?[fFLl]?)|([A-Za-z_][A-Za-z0-9_]*)|(\\s+)|(.)")
+private val DECL = Regex("^\\s*(private |internal |override |abstract )*(object|fun|class)\\b")
+private val FUN_NAME = Regex("\\bfun\\s+(?:[A-Za-z]+\\.)?([A-Za-z_][A-Za-z0-9_]*)")
+private const val NOISE = "#@%&\$*+=<>/\\|01▓▒░█"
+
+/** One line of the listing: code to be coloured, or ready-made coloured pieces. */
+private class Row(
+    val text: String = "",
+    val segs: List<Pair<String, Int>>? = null,
+    val bg: Int = 0,
+    val gutter: String? = null,
+)
+
+private class Src(val name: String, val lines: List<String>)
+
+private fun Scene.source(): Src {
+    val names = CodeSource.names
+    val name = names.takeIf { it.isNotEmpty() }?.let { it[i(0, it.size)] }
+    val text = name?.let { CodeSource.read(it) } ?: CodeSource.FALLBACK
+    return Src(name ?: "WetStreet.kt", text.replace("\t", "    ").lines())
+}
+
+/** The first line to show so that a declaration lands on the lit row. */
+private fun Scene.windowStart(src: Src, rows: Int, focusRow: Int): Int {
+    val decls = src.lines.indices.filter { DECL.containsMatchIn(src.lines[it]) }
+    val pick = if (decls.isEmpty()) 0 else decls[i(0, decls.size)]
+    return (pick - focusRow).coerceIn(0, maxOf(0, src.lines.size - rows))
+}
+
+private fun highlight(line: String, th: CodeTheme): List<Pair<String, Int>> {
+    val t = line.trimStart()
+    if (t.startsWith("/**") || t.startsWith("*") || t.startsWith("//")) return listOf(line to th.comment)
+    val out = ArrayList<Pair<String, Int>>()
+    val m = TOKEN.matcher(line)
+    while (m.find()) {
+        val tok = m.group()
+        val color = when {
+            m.group(1) != null -> th.comment
+            m.group(2) != null -> th.str
+            m.group(3) != null -> th.num
+            m.group(4) != null -> when {
+                tok in KEYWORDS -> th.kw
+                tok[0].isUpperCase() -> th.type
+                line.getOrNull(m.end()) == '(' -> th.fn
+                else -> th.plain
+            }
+            m.group(5) != null -> Color.TRANSPARENT
+            else -> if (tok == "@") th.accent else th.punct
+        }
+        out += tok to color
+    }
+    return out
+}
+
 /**
- * The code that draws the wallpapers, as the wallpaper: real source from this app's generators, set in a
- * monospaced editor on pure black with syntax colour, brightest at the line in focus. Four looks: an
- * editor, a git diff, a terminal and a single glowing passage.
+ * Sets [rows] in monospace down the page, brightest around the lit row (the clear band between the
+ * widgets and the icons) and dimmer away from it. [corrupt] is the share of characters swapped for noise.
  */
-object SourceCode : Style("source_code", "Source Code", Category.GLITCH) {
-    override val autoPalettes = listOf("aurora", "cyan", "cyber", "violet", "acid", "mono", "sunset", "hue")
+private fun Scene.drawRows(
+    rows: List<Row>, th: CodeTheme, size: Float, lead: Float, gutterCols: Int, sigma: Float, floor: Float,
+    corrupt: Float, focusRow: Int, cursor: Boolean, bar: Boolean,
+) {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
+    val adv = paint.measureText("M")
+    val margin = 26f
+    val codeX = margin + gutterCols * adv
+    val cols = ((w - codeX - margin) / adv).toInt()
+    val focusY = h * 0.4f
+    for ((r, row) in rows.withIndex()) {
+        val y = margin + lead * (r + 1) - lead * 0.22f
+        val lum = floor + (1f - floor) * Math.exp(-Math.pow(((y - focusY) / (h * sigma)).toDouble(), 2.0)).toFloat()
+        if (row.bg != 0) canvas.drawRect(0f, y - lead * 0.78f, w, y + lead * 0.22f, fill(row.bg or -0x1000000, (Color.alpha(row.bg) * (0.4f + 0.6f * lum)).toInt()))
+        if (bar && r == focusRow) canvas.drawRect(0f, y - lead * 0.78f, w, y + lead * 0.22f, fill(th.accent, 34))
+        if (row.gutter != null) {
+            paint.color = withAlpha(if (r == focusRow) th.accent else th.punct, (230 * lum).toInt().coerceAtLeast(50))
+            paint.textAlign = Paint.Align.RIGHT
+            canvas.drawText(row.gutter, margin + gutterCols * adv - adv * 1.1f, y, paint)
+            paint.textAlign = Paint.Align.LEFT
+        }
+        val segs = row.segs ?: highlight(row.text.take(cols), th)
+        var col = 0
+        for ((tok0, color) in segs) {
+            if (col >= cols) break
+            val tok = if (col + tok0.length > cols) tok0.substring(0, cols - col) else tok0
+            if (color != Color.TRANSPARENT) {
+                val chars = tok.toCharArray()
+                var hit = false
+                if (corrupt > 0f) for (k in chars.indices) if (chars[k] != ' ' && chance(corrupt)) { chars[k] = NOISE[i(0, NOISE.length)]; hit = true }
+                val hot = lum > 0.5f
+                if (hot) paint.setShadowLayer(8f + 8f * lum, 0f, 0f, withAlpha(color, 230)) else paint.clearShadowLayer()
+                if (!hit) {
+                    paint.color = withAlpha(color, (255 * lum).toInt())
+                    canvas.drawText(tok, codeX + col * adv, y, paint)
+                } else {
+                    for (k in chars.indices) {
+                        val bad = chars[k] != tok[k]
+                        paint.color = withAlpha(if (bad) (if (chance(0.5f)) th.err else lighten(th.accent, 0.4f)) else color, (255 * lum).toInt())
+                        canvas.drawText(chars[k].toString(), codeX + (col + k) * adv, y, paint)
+                    }
+                }
+            }
+            col += tok0.length
+        }
+        paint.clearShadowLayer()
+        if (cursor && r == focusRow) canvas.drawRect(codeX + col * adv + adv * 0.3f, y - size * 0.82f, codeX + col * adv + adv * 1.1f, y + 4f, fill(th.accent, 235, 5f))
+    }
+}
+
+private fun Scene.rowCount(lead: Float): Int = ((h - 52f) / lead).toInt()
+private fun Scene.focusRow(lead: Float): Int = ((h * 0.4f - 26f) / lead).toInt()
+
+/** Base for the code styles: draw into a layer, then tear it with a colour split. */
+private abstract class CodeStyle(id: String, name: String, val split: Float, val tears: Int, val shift: Float) :
+    Style(id, name, Category.GLITCH) {
+    override val autoPalettes = VIVID
     override val usesDetail: Boolean get() = false
     override val widgetSafe: Boolean get() = true
-
-    private val KEYWORDS = setOf(
-        "val", "var", "fun", "object", "class", "interface", "private", "internal", "override", "abstract", "open", "return",
-        "if", "else", "for", "while", "when", "in", "is", "as", "import", "package", "repeat", "true", "false", "null",
-        "const", "data", "enum", "companion", "this", "by", "get", "set", "init", "inline", "lateinit", "break", "continue", "do",
-    )
-    private val TOKEN: Pattern = Pattern.compile("(//.*)|(\"(?:\\\\.|[^\"\\\\])*\")|(0x[0-9A-Fa-f]+[LlUu]*|\\d[\\d_]*(?:\\.\\d+)?[fFLl]?)|([A-Za-z_][A-Za-z0-9_]*)|(\\s+)|(.)")
-    private val DECL = Regex("^\\s*(private |internal |override |abstract )*(object|fun|class)\\b")
-
-    private class Look(val gutter: Boolean, val diff: Boolean, val terminal: Boolean, val sigma: Float, val floor: Float)
-
+    abstract fun paintCode(s: Scene)
     override fun draw(s: Scene) {
-        val look = when (s.i(0, 4)) {
-            0 -> Look(gutter = true, diff = false, terminal = false, sigma = 0.2f, floor = 0.22f)
-            1 -> Look(gutter = true, diff = true, terminal = false, sigma = 0.22f, floor = 0.26f)
-            2 -> Look(gutter = false, diff = false, terminal = true, sigma = 0.24f, floor = 0.24f)
-            else -> Look(gutter = false, diff = false, terminal = false, sigma = 0.09f, floor = 0.09f)
-        }
-        val name = CodeSource.names.takeIf { it.isNotEmpty() }?.let { it[s.i(0, it.size)] }
-        val text = name?.let { CodeSource.read(it) } ?: CodeSource.FALLBACK
-        val all = text.replace("\t", "    ").lines()
+        val bmp = s.layer { paintCode(it) }
+        s.glitchComposite(bmp, split, tears, shift)
+    }
+}
 
-        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
-        val size = 19f
-        val lead = 27.5f
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = Typeface.MONOSPACE }
-        val adv = paint.measureText("M")
-        val margin = 26f
-        val gutterW = if (look.gutter) adv * 4.6f else 0f
-        val codeX = margin + gutterW
-        val cols = ((s.w - codeX - margin) / adv).toInt()
-        val rows = ((s.h - margin * 2f) / lead).toInt()
-        val focusY = s.h * 0.4f
-        val focusRow = ((focusY - margin) / lead).toInt()
+/** An editor: line numbers, a lit current line with a cursor, and a file tab's worth of syntax colour. */
+private object SourceCode : CodeStyle("source_code", "Source Code", 3.2f, 3, 38f) {
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme(); val src = s.source()
+        val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val start = s.windowStart(src, rows, focus)
+        val list = (0 until rows).mapNotNull { k -> src.lines.getOrNull(start + k)?.let { Row(it, gutter = (start + k + 1).toString()) } }
+        s.drawRows(list, th, 19f, lead, 5, 0.2f, 0.4f, 0.004f, focus, cursor = true, bar = true)
+    }
+}
 
+/** A git diff: hunks of added and removed lines with a loud green and red wash. */
+private object CodeDiff : CodeStyle("code_diff", "Diff Glitch", 3.8f, 4, 46f) {
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme(); val src = s.source()
+        val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val start = s.windowStart(src, rows, focus)
         val salt = s.i(0, 1_000_000)
-        val decls = all.indices.filter { DECL.containsMatchIn(all[it]) }
-        val pick = if (decls.isEmpty()) 0 else decls[s.i(0, decls.size)]
-        val start = (pick - focusRow).coerceIn(0, maxOf(0, all.size - rows))
-        val focusLine = pick - start
-
-        // Terminal: a prompt and the command that printed the file.
-        val header = if (look.terminal) listOf("zamoled@amoled:~/gen$ cat ${name ?: "WetStreet.kt"}") else emptyList()
-
-        for (row in 0 until rows) {
-            val y = margin + lead * (row + 1) - 6f
-            val lum = look.floor + (1f - look.floor) * Math.exp(-Math.pow(((y - focusY) / (s.h * look.sigma)).toDouble(), 2.0)).toFloat()
-            val idx = start + row
-            if (idx >= all.size && row >= header.size) break
-            if (row < header.size) {
-                paint.color = withAlpha(Color.rgb(60, 255, 140), (255 * lum).toInt())
-                s.canvas.drawText(header[row], codeX, y, paint)
-                continue
+        val add = Color.argb(84, 0, 255, 120); val del = Color.argb(84, 255, 40, 90)
+        val list = (0 until rows).mapNotNull { k ->
+            val line = src.lines.getOrNull(start + k) ?: return@mapNotNull null
+            val roll = (((start + k + salt) * 2654435761L) ushr 7) % 100
+            when {
+                k == focus - 1 -> Row(segs = listOf("@@ -${start + k},7 +${start + k},9 @@ " to th.num, line.trim().take(40) to th.fn))
+                roll < 22 -> Row(line, bg = add, gutter = "+")
+                roll < 31 -> Row(line, bg = del, gutter = "-")
+                else -> Row(line, gutter = (start + k + 1).toString())
             }
-            val src = idx - header.size
-            if (src < 0 || src >= all.size) continue
-            val line = all[src]
-            val shown = if (line.length > cols) line.substring(0, cols) else line
+        }
+        s.drawRows(list, th, 19f, lead, 5, 0.22f, 0.4f, 0.003f, focus, cursor = false, bar = false)
+    }
+}
 
-            val tag = if (look.diff) when (((src + salt) * 2654435761L ushr 7) % 100) { in 0L..21L -> 1; in 22L..30L -> -1; else -> 0 } else 0
-            if (row == focusLine && look.gutter && !look.diff) s.canvas.drawRect(0f, y - lead + 6f, s.w, y + 6f, s.fill(c0, 26))
-            if (tag != 0) s.canvas.drawRect(0f, y - lead + 6f, s.w, y + 6f, s.fill(if (tag > 0) Color.rgb(0, 230, 118) else Color.rgb(255, 61, 87), (46 * lum + 10).toInt()))
+/** A crash log built from real file names, functions and line numbers. */
+private object CodePanic : CodeStyle("code_panic", "Kernel Panic", 6f, 7, 70f) {
+    private val EXCEPTIONS = listOf(
+        "java.lang.IndexOutOfBoundsException: index=7, size=3",
+        "java.lang.IllegalStateException: palette is empty",
+        "java.lang.OutOfMemoryError: bitmap too large for 4K",
+        "java.lang.ArithmeticException: divide by zero",
+        "kotlin.NotImplementedError: An operation is not implemented: more sky",
+        "java.lang.NullPointerException: no pixel here",
+    )
 
-            if (look.gutter) {
-                paint.color = withAlpha(if (row == focusLine) c0 else Color.rgb(120, 125, 135), (200 * lum).toInt().coerceAtLeast(40))
-                paint.textAlign = Paint.Align.RIGHT
-                val label = if (tag > 0) "+" else if (tag < 0) "-" else (src + 1).toString()
-                s.canvas.drawText(label, margin + gutterW - adv * 1.2f, y, paint)
-                paint.textAlign = Paint.Align.LEFT
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme()
+        val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val files = (CodeSource.names.ifEmpty { listOf("WetStreet.kt") }).shuffled(java.util.Random(s.i(0, 1_000_000).toLong())).take(6)
+        val frames = ArrayList<Triple<String, String, Int>>()
+        for (f in files) {
+            val lines = (CodeSource.read(f) ?: CodeSource.FALLBACK).lines()
+            for ((n, l) in lines.withIndex()) FUN_NAME.find(l)?.let { frames += Triple(f.removeSuffix(".kt"), it.groupValues[1], n + 1) }
+        }
+        if (frames.isEmpty()) frames += Triple("WetStreet", "draw", 88)
+        fun frame(): Row {
+            val (cls, fn, ln) = frames[s.i(0, frames.size)]
+            return Row(segs = listOf(
+                "E/AndroidRuntime: " to Color.rgb(140, 60, 80), "    at " to th.punct, "com.nikopick.zamoled.gen." to th.comment,
+                cls to th.type, "." to th.punct, fn to th.fn, "(" to th.punct, "$cls.kt:$ln" to th.num, ")" to th.punct,
+            ))
+        }
+        val list = ArrayList<Row>()
+        repeat((focus - 4).coerceAtLeast(0)) { list += frame() }
+        list += Row(segs = listOf("--------- beginning of crash" to th.comment))
+        list += Row(segs = listOf("E/AndroidRuntime: " to Color.rgb(140, 60, 80), "FATAL EXCEPTION: main" to th.err), bg = Color.argb(70, 255, 40, 80))
+        list += Row(segs = listOf("E/AndroidRuntime: " to Color.rgb(140, 60, 80), "Process: com.nikopick.zamoled, PID: ${s.i(1000, 9999)}" to th.plain))
+        list += Row(segs = listOf("E/AndroidRuntime: " to Color.rgb(140, 60, 80), EXCEPTIONS[s.i(0, EXCEPTIONS.size)] to th.err))
+        while (list.size < rows) {
+            list += if (s.chance(0.08f)) Row(segs = listOf("E/AndroidRuntime: " to Color.rgb(140, 60, 80), "Caused by: " to th.accent, EXCEPTIONS[s.i(0, EXCEPTIONS.size)] to th.err)) else frame()
+        }
+        s.drawRows(list.take(rows), th, 18f, lead, 0, 0.24f, 0.4f, 0.012f, focus, cursor = true, bar = false)
+    }
+}
+
+/** A hex dump of the real file: offsets, bytes and the characters beside them. */
+private object CodeHex : CodeStyle("code_hex", "Hex Dump", 4.2f, 6, 60f) {
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme(); val src = s.source()
+        val bytes = src.lines.joinToString("\n").toByteArray()
+        val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val first = if (bytes.size > rows * 16) s.i(0, (bytes.size - rows * 16) / 16) * 16 else 0
+        fun tone(b: Int): Int = when {
+            b == 0x20 || b == 0x0a -> th.comment
+            b in 0x30..0x39 -> th.num
+            b in 0x41..0x5a || b in 0x61..0x7a -> th.kw
+            b in 0x21..0x7e -> th.str
+            else -> th.err
+        }
+        val list = (0 until rows).mapNotNull { r ->
+            val off = first + r * 16
+            if (off >= bytes.size) return@mapNotNull null
+            val segs = ArrayList<Pair<String, Int>>()
+            segs += String.format("%08x  ", off) to th.punct
+            val ascii = StringBuilder()
+            for (k in 0 until 16) {
+                val b = if (off + k < bytes.size) bytes[off + k].toInt() and 0xff else -1
+                if (b < 0) { segs += "   " to th.comment; continue }
+                val shown = if (s.chance(0.006f)) s.i(0, 256) else b
+                segs += String.format("%02x ", shown) to (if (shown != b) th.err else tone(b))
+                if (k == 7) segs += " " to th.comment
+                ascii.append(if (b in 0x20..0x7e) b.toChar() else '.')
             }
+            segs += " |" to th.punct
+            segs += ascii.toString() to th.plain
+            segs += "|" to th.punct
+            Row(segs = segs)
+        }
+        s.drawRows(list, th, 18f, lead, 0, 0.22f, 0.4f, 0f, focus, cursor = false, bar = true)
+    }
+}
 
-            val doc = line.trimStart().let { it.startsWith("/**") || it.startsWith("*") || it.startsWith("//") }
-            val m = TOKEN.matcher(shown)
-            var col = 0
-            while (m.find()) {
-                val tok = m.group()
-                val color = when {
-                    doc || m.group(1) != null -> Color.rgb(98, 118, 108)
-                    m.group(2) != null -> c1
-                    m.group(3) != null -> c2
-                    m.group(4) != null -> when {
-                        tok in KEYWORDS -> c0
-                        tok[0].isUpperCase() -> lighten(c1, 0.35f)
-                        shown.getOrNull(m.end()) == '(' -> lighten(c2, 0.55f)
-                        else -> Color.rgb(212, 216, 224)
-                    }
-                    m.group(6) != null -> if (tok == "@") c2 else Color.rgb(132, 138, 150)
-                    else -> Color.TRANSPARENT
+/** Code rain made of real code: each column is a run of characters from the file, reading downward. */
+private object CodeFall : CodeStyle("code_fall", "Code Fall", 3f, 4, 44f) {
+    override val widgetSafe: Boolean get() = false
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme(); val src = s.source()
+        val stream = src.lines.joinToString(" ") { it.trim() }.filter { !it.isWhitespace() }.ifEmpty { "fundrawscene" }
+        val size = 22f; val lead = 25f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+        val adv = paint.measureText("M") * 1.04f
+        var x = adv / 2f
+        while (x < s.w) {
+            if (s.chance(0.7f)) {
+                val len = s.i(10, 46)
+                val head = s.f(0f, s.h / lead + len).toInt()
+                val at = s.i(0, stream.length)
+                for (k in 0 until len) {
+                    val row = head - len + 1 + k
+                    val y = row * lead
+                    if (y < -lead || y > s.h + lead) continue
+                    val ch = stream[(at + k) % stream.length]
+                    val t = k / (len - 1f)
+                    val base = when { ch.isDigit() -> th.num; ch.isLetter() -> if (ch.isUpperCase()) th.type else th.kw; else -> th.str }
+                    if (k == len - 1) { paint.color = Color.WHITE; paint.setShadowLayer(14f, 0f, 0f, th.accent) }
+                    else { paint.color = withAlpha(base, (70 + 185 * t).toInt()); paint.setShadowLayer(6f, 0f, 0f, withAlpha(base, (150 * t).toInt())) }
+                    s.canvas.drawText(ch.toString(), x, y, paint)
                 }
-                if (m.group(5) == null) {
-                    val a = (255 * lum).toInt()
-                    paint.color = withAlpha(color, a)
-                    if (lum > 0.9f && m.group(4) != null && tok in KEYWORDS) paint.setShadowLayer(9f, 0f, 0f, withAlpha(color, 190)) else paint.clearShadowLayer()
-                    s.canvas.drawText(tok, codeX + col * adv, y, paint)
-                }
-                col += tok.length
             }
-            paint.clearShadowLayer()
-            if (row == focusLine && (look.gutter || look.terminal)) {
-                s.canvas.drawRect(codeX + col * adv + adv * 0.3f, y - size * 0.82f, codeX + col * adv + adv * 1.1f, y + 4f, s.fill(c0, 230, 5f))
-            }
+            x += adv
         }
     }
 }
 
+/** Poster type: a few lines of real code set huge, cropped at the edges, split hard. */
+private object CodePoster : CodeStyle("code_poster", "Big Code", 9f, 4, 90f) {
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme(); val src = s.source()
+        val lead = 66f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val start = s.windowStart(src, rows, focus)
+        val list = (0 until rows).mapNotNull { k ->
+            src.lines.getOrNull(start + k)?.trim()?.let { Row(it.take(40)) }
+        }
+        s.drawRows(list, th, 48f, lead, 0, 0.17f, 0.12f, 0.004f, focus, cursor = true, bar = false)
+    }
+}
+
+/** An editor in the middle of dying: characters swapped for noise, whole lines gone to static, holes punched out. */
+private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 6f, 12, 80f) {
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme(); val src = s.source()
+        val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val start = s.windowStart(src, rows, focus)
+        val list = (0 until rows).mapNotNull { k ->
+            val line = src.lines.getOrNull(start + k) ?: return@mapNotNull null
+            if (k != focus && s.chance(0.07f)) {
+                val n = s.i(8, 56)
+                Row(segs = listOf(String(CharArray(n) { NOISE[s.i(0, NOISE.length)] }) to (if (s.chance(0.5f)) th.err else th.accent)), gutter = (start + k + 1).toString())
+            } else Row(line, gutter = (start + k + 1).toString())
+        }
+        s.drawRows(list, th, 19f, lead, 5, 0.24f, 0.4f, 0.07f, focus, cursor = true, bar = true)
+        repeat(s.i(3, 7)) {
+            val y = s.f(0f, s.h)
+            s.canvas.drawRect(s.f(0f, s.w * 0.6f), y, s.f(s.w * 0.4f, s.w), y + s.f(10f, 60f), s.fill(Color.BLACK))
+        }
+    }
+}
+
+/** A Gradle build scrolling past, warnings and errors named after real files and lines. */
+private object CodeBuild : CodeStyle("code_build", "Build Log", 3.6f, 4, 50f) {
+    private val TASKS = listOf("preBuild", "compileDebugKotlin", "mergeDebugAssets", "dexBuilderDebug", "processDebugResources", "packageDebug", "lintVitalRelease", "minifyReleaseWithR8")
+    private val WARNINGS = listOf("Variable '%s' is never used", "Unnecessary safe call on a non-null receiver", "Parameter '%s' is never used", "'%s' is deprecated")
+    private val ERRORS = listOf("Unresolved reference: sparkle", "Type mismatch: inferred type is Int but Float was expected", "Expecting a top level declaration")
+
+    override fun paintCode(s: Scene) {
+        val th = s.codeTheme()
+        val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
+        val names = CodeSource.names.ifEmpty { listOf("WetStreet.kt") }
+        val green = Color.rgb(60, 255, 140)
+        val list = ArrayList<Row>()
+        while (list.size < rows) {
+            val f = names[s.i(0, names.size)]
+            when (s.i(0, 10)) {
+                in 0..3 -> list += Row(segs = listOf("> Task " to th.punct, ":app:${TASKS[s.i(0, TASKS.size)]}" to th.fn, (if (s.chance(0.3f)) " UP-TO-DATE" else "") to green))
+                in 4..6 -> list += Row(segs = listOf("w: " to th.num, "file:///app/gen/$f:${s.i(8, 400)}:${s.i(3, 40)} " to th.comment, WARNINGS[s.i(0, WARNINGS.size)].replace("%s", listOf("size", "rot", "fill", "alpha")[s.i(0, 4)]) to th.plain))
+                7 -> list += Row(segs = listOf("e: " to th.err, "file:///app/gen/$f:${s.i(8, 400)}:${s.i(3, 40)} " to th.comment, ERRORS[s.i(0, ERRORS.size)] to th.err), bg = Color.argb(60, 255, 40, 80))
+                8 -> { val n = s.i(2, 20); list += Row(segs = listOf("[" to th.punct, "█".repeat(n) to th.accent, "░".repeat(20 - n) to th.comment, "] ${n * 5}%" to th.plain)) }
+                else -> list += Row(segs = listOf((if (s.chance(0.5f)) "BUILD SUCCESSFUL" else "BUILD FAILED") to green, " in ${s.i(1, 3)}m ${s.i(1, 59)}s" to th.plain))
+            }
+        }
+        s.drawRows(list.take(rows), th, 18f, lead, 0, 0.22f, 0.4f, 0.004f, focus, cursor = true, bar = false)
+    }
+}
+
 object GlitchWorld {
-    val styles: List<Style> = listOf(WetStreet, SourceCode)
+    val styles: List<Style> = listOf(WetStreet, SourceCode, CodeDiff, CodePanic, CodeHex, CodeFall, CodePoster, CodeCorrupt, CodeBuild)
 }
