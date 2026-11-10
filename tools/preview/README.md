@@ -21,6 +21,8 @@ The Gradle build is already pointed at the same mirror.
   -Dpreview.palette=auto          # palette id
   -Dpreview.layout=rings,shape    # doodle arrangements
   -Dpreview.density=1.8          # the Detail slider, 0.4 to 1.8
+  -Dpreview.black=0.5            # black level, 0 to 1
+  -Dpreview.text="your words"    # text for the Words styles
   -Dpreview.width=2160            # output width in pixels (default 540); use it to time a 4K export
 # PNGs land in tools/preview/out/
 ```

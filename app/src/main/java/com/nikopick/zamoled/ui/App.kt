@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,35 +21,66 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.nikopick.zamoled.data.FavoritesStore
+import com.nikopick.zamoled.data.Prefs
 import com.nikopick.zamoled.gen.WallpaperSpec
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun ZamoledApp() {
+fun ZamoledApp(linkedKey: String? = null, onLinkShown: () -> Unit = {}) {
     val context = LocalContext.current
     val favorites = remember { FavoritesStore(context.applicationContext) }
+    val prefs = remember { Prefs(context.applicationContext) }
     val home = rememberHomeState()
     var openKey by rememberSaveable { mutableStateOf<String?>(null) }
 
+    // A shared link opens its wallpaper straight away, whatever screen the app was on.
+    LaunchedEffect(linkedKey) {
+        if (linkedKey != null) {
+            openKey = linkedKey
+            onLinkShown()
+        }
+    }
+
+    if (!prefs.onboarded && linkedKey == null && openKey == null) {
+        OnboardingScreen(onDone = { prefs.finishOnboarding(it) })
+        return
+    }
+
     ProvideShimmer {
-    SharedTransitionLayout(Modifier.fillMaxSize().background(Color.Black)) {
-        AnimatedContent(
-            targetState = openKey,
-            transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
-            label = "screen",
-        ) { key ->
-            CompositionLocalProvider(
-                LocalSharedScope provides this@SharedTransitionLayout,
-                LocalNavAnimScope provides this,
-            ) {
-                val spec = key?.let { WallpaperSpec.fromKey(it) }
-                if (spec == null) {
-                    HomeScreen(state = home, favorites = favorites, onOpen = { openKey = it.key })
-                } else {
-                    DetailScreen(initial = spec, favorites = favorites, onBack = { openKey = null })
+        SharedTransitionLayout(Modifier.fillMaxSize().background(Color.Black)) {
+            AnimatedContent(
+                targetState = openKey,
+                transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
+                label = "screen",
+            ) { key ->
+                CompositionLocalProvider(
+                    LocalSharedScope provides this@SharedTransitionLayout,
+                    LocalNavAnimScope provides this,
+                ) {
+                    val spec = key?.let { WallpaperSpec.fromKey(it) }
+                    if (spec == null) {
+                        HomeScreen(
+                            state = home,
+                            favorites = favorites,
+                            prefs = prefs,
+                            onOpen = {
+                                prefs.remember(it)
+                                openKey = it.key
+                            },
+                        )
+                    } else {
+                        DetailScreen(
+                            initial = spec,
+                            favorites = favorites,
+                            onBack = { openKey = null },
+                            onMoreLikeThis = { styleId ->
+                                home.showStyle(styleId)
+                                openKey = null
+                            },
+                        )
+                    }
                 }
             }
         }
-    }
     }
 }

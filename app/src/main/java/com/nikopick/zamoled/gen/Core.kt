@@ -62,6 +62,7 @@ object Palettes {
 enum class Category(val label: String) {
     DOODLE("Doodle"),
     LAB("Lab"),
+    WORDS("Words"),
     MATERIAL("For Pixel"),
     MINIMAL("Minimal"),
     GEOMETRIC("Geometric"),
@@ -84,21 +85,27 @@ data class WallpaperSpec(
     val paletteId: String = "auto",
     val density: Float = 1f,
     val layoutId: String = "auto",
+    /** Black level, 0..1: how hard dim glow and haze are crushed to pure #000000 after drawing. */
+    val black: Float = 0f,
+    /** The words to set, for styles that draw text. Empty means the style picks its own. */
+    val text: String = "",
 ) {
-    val key: String get() = "$styleId|$seed|$paletteId|$density|$layoutId"
+    val key: String get() = "$styleId|$seed|$paletteId|$density|$layoutId|$black|${text.replace('|', ' ').replace('\n', ' ')}"
     val style: Style get() = Styles.byId(styleId)
     val palette: Palette get() = Palettes.resolve(paletteId, seed, style)
     val layout: DoodleLayout get() = DoodleLayout.resolve(layoutId, seed)
 
     companion object {
         fun fromKey(key: String): WallpaperSpec? {
-            val p = key.split('|')
-            // Four fields is the pre-layout format kept by older favourites.
-            if (p.size != 4 && p.size != 5) return null
+            // Four fields is the oldest format, five added arrangements, seven added black level and text.
+            val p = key.split('|', limit = 7)
+            if (p.size != 4 && p.size != 5 && p.size != 7) return null
             val seed = p[1].toLongOrNull() ?: return null
             val density = p[3].toFloatOrNull() ?: return null
             // Favourites saved before arrangements existed used the jittered grid.
-            return WallpaperSpec(p[0], seed, p[2], density, if (p.size == 5) p[4] else DoodleLayout.GRID.id)
+            val layout = if (p.size >= 5) p[4] else DoodleLayout.GRID.id
+            val black = if (p.size == 7) p[5].toFloatOrNull() ?: return null else 0f
+            return WallpaperSpec(p[0], seed, p[2], density, layout, black, if (p.size == 7) p[6] else "")
         }
     }
 }
@@ -175,6 +182,8 @@ class Scene(
     val noise: Noise,
     /** Arrangement for styles that lay doodles out across the page. */
     val layout: DoodleLayout = DoodleLayout.SCATTER,
+    /** Custom words for styles that draw text; empty when the style should choose. */
+    val text: String = "",
 ) {
 
     val cx: Float get() = w / 2f
@@ -252,6 +261,9 @@ abstract class Style(val id: String, val name: String, val category: Category) {
 
     /** False for styles the Detail slider does nothing to. */
     open val usesDetail: Boolean get() = true
+
+    /** True for styles that set the user's own words. */
+    open val usesText: Boolean get() = false
     abstract fun draw(s: Scene)
 }
 
@@ -273,9 +285,45 @@ object Renderer {
             density = spec.density,
             noise = Noise(spec.seed),
             layout = spec.layout,
+            text = spec.text,
         )
         spec.style.draw(scene)
+        if (spec.black > 0.01f) crush(bmp, spec.black)
         return bmp
+    }
+
+    /**
+     * Pushes dim pixels to pure black. Anything darker than the threshold switches off completely,
+     * and the band just above it fades in, so glows end in a soft edge instead of a hard cut.
+     */
+    fun crush(bmp: Bitmap, level: Float) {
+        // Squared, so the first half of the slider only trims faint haze and the top end is ruthless.
+        val l = level.coerceIn(0f, 1f)
+        val t = (l * l * 64f).toInt().coerceAtLeast(1)
+        val knee = t + t / 2 + 8
+        val w = bmp.width
+        val row = IntArray(w)
+        for (y in 0 until bmp.height) {
+            bmp.getPixels(row, 0, w, 0, y, w, 1)
+            var changed = false
+            for (x in 0 until w) {
+                val p = row[x]
+                val r = p shr 16 and 0xFF
+                val g = p shr 8 and 0xFF
+                val b = p and 0xFF
+                val m = if (r > g) (if (r > b) r else b) else (if (g > b) g else b)
+                if (m == 0 || m >= knee) continue
+                changed = true
+                if (m <= t) {
+                    row[x] = -0x1000000
+                } else {
+                    val f = (m - t).toFloat() / (knee - t)
+                    val k = f * f * (3f - 2f * f)
+                    row[x] = -0x1000000 or ((r * k).toInt() shl 16) or ((g * k).toInt() shl 8) or (b * k).toInt()
+                }
+            }
+            if (changed) bmp.setPixels(row, 0, w, 0, y, w, 1)
+        }
     }
 
     /** Share of pixels that are true black (every channel <= 3) — what an OLED panel switches off. */
@@ -299,7 +347,7 @@ object Styles {
     val all: List<Style> = listOf(
         StickerBomb, Gouache, Chalk, SpaceDoodles, Gatti, GattiSketch,
         M3Bloom, M3Cookies, M3Waves, M3Pills, M3Arches, M3Blobs, M3Ribbons, M3Components, M3Aura, M3Overlap,
-        LoneTree, KoiPond, MoonFisher,
+        LoneTree, KoiPond, MoonFisher, LineConstellation, OneLine, Contours, Orbits, Glance,
         CrystalCave, ArtDecoTower, FloatingIsle,
         AstronautDrift, RingedWorld, BlackHole, Eclipse,
         StarrySwirl, LiquidMarble, InkSmoke,
@@ -308,7 +356,7 @@ object Styles {
         DataRain,
         PixelCastle, PixelQuest, PixelSpace, PixelCity, PixelLandscape,
         LanternFestival, Candles, Jellyfish, Fireflies,
-    ) + NatureWorld.styles + NeonWorld.styles + GlitchWorld.styles + MysticWorld.styles + LabWorld.styles
+    ) + NatureWorld.styles + NeonWorld.styles + GlitchWorld.styles + MysticWorld.styles + LabWorld.styles + WordsWorld.styles
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(
@@ -330,6 +378,10 @@ object Styles {
     private val subcategories: Map<String, String> = mapOf(
         // Doodle
         "sticker_bomb" to "Sticker", "gouache" to "Painted", "chalk" to "Chalk",
+        // Minimal
+        "lone_tree" to "Ink", "koi_pond" to "Ink", "moon_fisher" to "Ink",
+        "line_constellation" to "Lines", "one_line" to "Lines", "contours" to "Lines", "orbits" to "Lines",
+        "glance" to "Always-on",
         // Nature
         "aurora_night" to "Sky", "starry_pines" to "Sky", "moon_path" to "Water", "moonlit_peaks" to "Land",
         // Neon

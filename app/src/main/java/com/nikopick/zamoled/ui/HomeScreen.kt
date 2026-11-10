@@ -107,6 +107,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import com.nikopick.zamoled.data.AUTO_SOURCE_ALL
+import com.nikopick.zamoled.data.AUTO_SOURCE_FAVORITES
+import com.nikopick.zamoled.data.AutoWallpaper
+import com.nikopick.zamoled.data.Prefs
+import com.nikopick.zamoled.data.ShareLink
+import com.nikopick.zamoled.data.WallpaperTarget
+import com.nikopick.zamoled.gen.Style
 import com.nikopick.zamoled.data.FavoritesStore
 import com.nikopick.zamoled.data.Screen
 import com.nikopick.zamoled.gen.Category
@@ -119,6 +135,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 private const val FILTER_ALL = "all"
+private const val COVER_SEED = -7046029254386353131L + 12345L
 /** The feed is finite: this many wallpapers per batch, and Shuffle brings a fresh batch. */
 private const val FEED_SIZE = 24
 
@@ -138,6 +155,20 @@ class HomeState(
     var tab by mutableStateOf(HomeTab.EXPLORE)
     var filter by mutableStateOf(FILTER_ALL)
     var subcategory by mutableStateOf<String?>(null)
+
+    /** When set, the feed shows only this style: its own page of variations. */
+    var styleId by mutableStateOf<String?>(null)
+    var searching by mutableStateOf(false)
+    var query by mutableStateOf("")
+    var showAuto by mutableStateOf(false)
+
+    fun showStyle(id: String) {
+        styleId = id
+        searching = false
+        query = ""
+        tab = HomeTab.EXPLORE
+        batch = System.currentTimeMillis()
+    }
     var batch by mutableLongStateOf(System.currentTimeMillis())
     var update by mutableStateOf<UpdateInfo?>(null)
 }
@@ -152,16 +183,39 @@ fun rememberHomeState(): HomeState {
     return state
 }
 
+/** Styles whose name, world or sub-category contains [query]. */
+private fun searchStyles(query: String): List<Style> {
+    val q = query.trim().lowercase()
+    if (q.isEmpty()) return emptyList()
+    return Styles.all.filter {
+        it.name.lowercase().contains(q) || it.category.label.lowercase().contains(q) || Styles.subcategoryOf(it).lowercase().contains(q)
+    }
+}
+
 /**
- * One batch of wallpapers. With no filter every card is a different style, so the feed never
- * shows the same world twice in a row; inside a category the styles repeat only as often as
- * they have to to fill the batch.
+ * One batch of wallpapers. A style page shows only that style; a search shows its matches. With
+ * no filter every card is a different style, starting with the worlds picked at first launch;
+ * inside a category the styles repeat only as often as they have to to fill the batch.
  */
-private fun buildSpecs(filter: String, subcategory: String?, batch: Long): List<WallpaperSpec> {
+private fun buildSpecs(filter: String, subcategory: String?, batch: Long, styleId: String?, query: String, likes: Set<String>): List<WallpaperSpec> {
+    val rnd = Random(batch xor filter.hashCode().toLong() xor subcategory.hashCode().toLong() xor styleId.hashCode().toLong())
+    if (styleId != null) return List(FEED_SIZE) { WallpaperSpec(styleId, rnd.nextLong()) }
+    if (query.isNotBlank()) {
+        val found = searchStyles(query)
+        if (found.isEmpty()) return emptyList()
+        val per = if (found.size >= 8) 2 else if (found.size >= 4) 3 else 6
+        return found.take(FEED_SIZE).flatMap { style -> List(per) { WallpaperSpec(style.id, rnd.nextLong()) } }
+    }
     val styles = if (filter == FILTER_ALL) Styles.all else Styles.of(Category.valueOf(filter), subcategory)
     if (styles.isEmpty()) return emptyList()
-    val rnd = Random(batch xor filter.hashCode().toLong() xor subcategory.hashCode().toLong())
-    val order = styles.shuffled(rnd)
+    val shuffled = styles.shuffled(rnd)
+    // Liked worlds fill the first two thirds of an unfiltered feed; the rest stays a surprise.
+    val order = if (filter == FILTER_ALL && likes.isNotEmpty()) {
+        val liked = shuffled.filter { it.category.name in likes }.take(FEED_SIZE * 2 / 3)
+        (liked + shuffled.filter { it !in liked }).let { mixed -> mixed.take(FEED_SIZE).shuffled(rnd) + mixed.drop(FEED_SIZE) }
+    } else {
+        shuffled
+    }
     val count = if (filter == FILTER_ALL) minOf(FEED_SIZE, order.size) else minOf(FEED_SIZE, maxOf(order.size * 3, 6))
     return List(count) { i -> WallpaperSpec(order[i % order.size].id, rnd.nextLong()) }
 }
@@ -181,7 +235,7 @@ private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_
 private fun topInset() = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
 @Composable
-fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSpec) -> Unit) {
+fun HomeScreen(state: HomeState, favorites: FavoritesStore, prefs: Prefs, onOpen: (WallpaperSpec) -> Unit) {
     val fabExpanded by remember { derivedStateOf { state.exploreGrid.firstVisibleItemIndex < 3 } }
     Scaffold(
         containerColor = Color.Black,
@@ -238,10 +292,13 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
         ) { tab ->
             when (tab) {
-                HomeTab.EXPLORE -> ExploreTab(state, favorites, onOpen)
+                HomeTab.EXPLORE -> ExploreTab(state, favorites, prefs, onOpen)
                 HomeTab.CATEGORIES -> CategoriesTab(state) { category ->
                     state.filter = category.name
                     state.subcategory = null
+                    state.styleId = null
+                    state.query = ""
+                    state.searching = false
                     state.tab = HomeTab.EXPLORE
                 }
                 HomeTab.FAVORITES -> FavoritesTab(state, favorites, onOpen)
@@ -253,16 +310,20 @@ fun HomeScreen(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSp
 // ---------- Explore ----------
 
 @Composable
-private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (WallpaperSpec) -> Unit) {
+private fun ExploreTab(state: HomeState, favorites: FavoritesStore, prefs: Prefs, onOpen: (WallpaperSpec) -> Unit) {
     val scope = rememberCoroutineScope()
-    val specs = remember(state.filter, state.subcategory, state.batch) {
-        buildSpecs(state.filter, state.subcategory, state.batch)
+    val context = LocalContext.current
+    val specs = remember(state.filter, state.subcategory, state.batch, state.styleId, state.query, prefs.likes) {
+        buildSpecs(state.filter, state.subcategory, state.batch, state.styleId, state.query, prefs.likes)
     }
+    val focused = state.styleId != null || state.query.isNotBlank()
+    val shared = remember(state.query) { ShareLink.parse(state.query) }
+    val recent = remember(prefs.history) { prefs.history.mapNotNull { WallpaperSpec.fromKey(it) } }
     val featured = remember(state.batch) { featuredSpecs(state.batch) }
-    val showFeatured = state.filter == FILTER_ALL
+    val showFeatured = state.filter == FILTER_ALL && !focused && !state.searching
     val category = if (state.filter == FILTER_ALL) null else Category.valueOf(state.filter)
     val subcategories = remember(state.filter) { category?.let { Styles.subcategories(it) }.orEmpty() }
-    val showSubs = subcategories.size > 1
+    val showSubs = subcategories.size > 1 && !focused
     val grid = state.exploreGrid
 
     LazyVerticalGrid(
@@ -275,8 +336,54 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
     ) {
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                HeroHeader(onShuffle = { state.batch = System.currentTimeMillis() })
+                HeroHeader(
+                    autoOn = prefs.autoEnabled,
+                    onShuffle = { state.batch = System.currentTimeMillis() },
+                    onSearch = {
+                        state.searching = !state.searching
+                        if (!state.searching) state.query = ""
+                    },
+                    onAuto = { state.showAuto = true },
+                )
                 UpdateBanner(state.update, onDismiss = { state.update = null })
+                AnimatedVisibility(
+                    visible = state.searching,
+                    enter = expandVertically(Motion.spatial()) + fadeIn(),
+                    exit = shrinkVertically(Motion.spatial()) + fadeOut(),
+                ) {
+                    SearchField(
+                        query = state.query,
+                        onQuery = {
+                            state.query = it
+                            state.styleId = null
+                        },
+                        onClose = {
+                            state.searching = false
+                            state.query = ""
+                        },
+                    )
+                }
+                if (shared != null) {
+                    Button(onClick = { onOpen(shared) }, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                        Text("Open shared wallpaper: ${shared.style.name}")
+                    }
+                }
+                state.styleId?.let { id ->
+                    StylePageHeader(Styles.byId(id), onClose = { state.styleId = null })
+                }
+                if (state.query.isNotBlank() && shared == null) {
+                    Text(
+                        if (specs.isEmpty()) "Nothing matches \"${state.query.trim()}\". Try a world like Space, or a style like Aura." else "${specs.size} wallpapers match",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp),
+                    )
+                }
+            }
+        }
+        if (showFeatured && recent.isNotEmpty()) {
+            item(key = "recent", span = { GridItemSpan(maxLineSpan) }) {
+                RecentRow(recent, onOpen)
             }
         }
         if (showFeatured) {
@@ -284,7 +391,7 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
                 FeaturedCarousel(featured, onOpen)
             }
         }
-        item(key = "filters", span = { GridItemSpan(maxLineSpan) }) {
+        if (!focused) item(key = "filters", span = { GridItemSpan(maxLineSpan) }) {
             FilterRow(selected = state.filter) { f ->
                 if (f != state.filter) {
                     state.filter = f
@@ -311,11 +418,139 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, onOpen: (Wal
                 modifier = Modifier.animateItem(),
             )
         }
-        item(key = "feed-end", span = { GridItemSpan(maxLineSpan) }) {
+        if (specs.isNotEmpty()) item(key = "feed-end", span = { GridItemSpan(maxLineSpan) }) {
             FeedEnd(count = specs.size) {
                 state.batch = System.currentTimeMillis()
                 scope.launch { grid.animateScrollToItem(0) }
             }
+        }
+    }
+    if (state.showAuto) {
+        AutoWallpaperSheet(prefs, favoriteCount = favorites.keys.size, onDismiss = { state.showAuto = false }) { enabled, source, target ->
+            prefs.setAuto(enabled, source, target)
+            AutoWallpaper.schedule(context, enabled)
+        }
+    }
+}
+
+/** The search box. It also accepts a pasted share link or code. */
+@Composable
+private fun SearchField(query: String, onQuery: (String) -> Unit, onClose: () -> Unit) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQuery,
+        singleLine = true,
+        placeholder = { Text("Search styles and worlds, or paste a shared link") },
+        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        trailingIcon = { IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, contentDescription = "Close search") } },
+        shape = CircleShape,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+    )
+}
+
+/** The heading of a style's own page. */
+@Composable
+private fun StylePageHeader(style: Style, onClose: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp)) {
+            Icon(style.category.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text(style.name, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "${style.category.label} · every card is a different variation",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, contentDescription = "Leave this style") }
+        }
+    }
+}
+
+/** Wallpapers opened lately, newest first, so one scrolled past is not lost. */
+@Composable
+private fun RecentRow(specs: List<WallpaperSpec>, onOpen: (WallpaperSpec) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+        SectionTitle("Recently viewed")
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 4.dp)) {
+            items(specs, key = { it.key }) { spec ->
+                val bitmap by rememberThumbnail(spec)
+                Card(
+                    onClick = { onOpen(spec) },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    modifier = Modifier.width(84.dp).aspectRatio(Screen.aspect),
+                ) {
+                    val b = bitmap
+                    if (b != null) {
+                        Image(remember(b) { b.asImageBitmap() }, contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    } else {
+                        Box(Modifier.fillMaxSize().shimmer())
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Settings for the wallpaper that changes by itself once a day. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AutoWallpaperSheet(
+    prefs: Prefs,
+    favoriteCount: Int,
+    onDismiss: () -> Unit,
+    onChange: (Boolean, String, WallpaperTarget) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(horizontal = 24.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Daily wallpaper", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "A new wallpaper about once a day, set in the background.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = prefs.autoEnabled, onCheckedChange = { onChange(it, prefs.autoSource, prefs.autoTarget) })
+            }
+            Text("Pick from", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val sources = listOf(AUTO_SOURCE_ALL to "Everything", AUTO_SOURCE_FAVORITES to "Favorites ($favoriteCount)") +
+                Styles.categories.map { it.name to it.label }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(sources, key = { it.first }) { (id, label) ->
+                    FilterChip(
+                        selected = prefs.autoSource == id,
+                        onClick = { onChange(prefs.autoEnabled, id, prefs.autoTarget) },
+                        label = { Text(label) },
+                        shape = CircleShape,
+                    )
+                }
+            }
+            Text("Set on", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WallpaperTarget.entries.forEach { target ->
+                    FilterChip(
+                        selected = prefs.autoTarget == target,
+                        onClick = { onChange(prefs.autoEnabled, prefs.autoSource, target) },
+                        label = { Text(if (target == WallpaperTarget.BOTH) "Both" else target.label) },
+                        shape = CircleShape,
+                    )
+                }
+            }
+            Text(
+                "Android decides the exact time, usually while the phone is idle. Favorites falls back to everything while you have none saved.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.navigationBarsPadding().height(12.dp))
         }
     }
 }
@@ -355,43 +590,50 @@ private fun StatPill(text: String) {
 }
 
 @Composable
-private fun HeroHeader(onShuffle: () -> Unit) {
+private fun HeroHeader(autoOn: Boolean, onShuffle: () -> Unit, onSearch: () -> Unit, onAuto: () -> Unit) {
     val scope = rememberCoroutineScope()
     val spin = remember { Animatable(0f) }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 12.dp),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                greeting(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            GradientText("Zamoled", style = MaterialTheme.typography.displaySmall)
-            Text(
-                "Pitch-black wallpapers, drawn on your phone",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
-                StatPill("${Styles.all.size} wallpapers")
-                StatPill("${Styles.categories.size} worlds")
-                StatPill("4K")
+    Column(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    greeting(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                GradientText("Zamoled", style = MaterialTheme.typography.displaySmall)
+            }
+            IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, contentDescription = "Search") }
+            IconButton(onClick = onAuto) {
+                Icon(
+                    Icons.Rounded.Schedule,
+                    contentDescription = "Daily wallpaper",
+                    tint = if (autoOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            FilledTonalIconButton(
+                onClick = {
+                    onShuffle()
+                    scope.launch { spin.animateTo(spin.value + 360f, Motion.bouncy()) }
+                },
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    Icons.Rounded.Refresh,
+                    contentDescription = "New batch",
+                    modifier = Modifier.graphicsLayer { rotationZ = spin.value },
+                )
             }
         }
-        FilledTonalIconButton(
-            onClick = {
-                onShuffle()
-                scope.launch { spin.animateTo(spin.value + 360f, Motion.bouncy()) }
-            },
-            modifier = Modifier.size(52.dp),
-        ) {
-            Icon(
-                Icons.Rounded.Refresh,
-                contentDescription = "New batch",
-                modifier = Modifier.graphicsLayer { rotationZ = spin.value },
-            )
+        Text(
+            "Pitch-black wallpapers, drawn on your phone",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
+            StatPill("${Styles.all.size} wallpapers")
+            StatPill("${Styles.categories.size} worlds")
+            StatPill(if (autoOn) "Daily on" else "4K")
         }
     }
 }
@@ -714,7 +956,8 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val styles = Styles.of(category)
-    val sample = remember(category) { WallpaperSpec(styles[0].id, category.ordinal * 7919L + 42L) }
+    // A fixed seed that was checked on every world's first style, so no card comes up nearly empty.
+    val sample = remember(category) { WallpaperSpec(if (category == Category.GEOMETRIC) "floating_isle" else styles[0].id, COVER_SEED) }
     val bitmap by rememberThumbnail(sample)
     val containers = listOf(
         MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer,

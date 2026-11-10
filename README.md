@@ -4,13 +4,14 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 
 ## Features
 
-- **67 wallpapers across 14 worlds**, each with its own art direction
+- **76 wallpapers across 15 worlds**, each with its own art direction
   | World     | Styles |
   |-----------|--------|
   | Doodle    | Sticker Bomb, Gouache, Chalk, Space Doodles, and two cat styles: Cat Club (twelve breeds, from tabby and British Shorthair to Bengal, Siamese, calico, Sphynx, Maine Coon and Scottish Fold, each with its own markings and a different mood) and Cat Faces (big comic faces) |
   | Lab       | Science emoji as stickers, gouache or chalk: Physics, Maths, Chemistry, Biology, Psychology, Philosophy, History, Space, Spirals & Radiation, and Everything (about 55 icons) |
+  | Words     | Your own words on black, typed in the editor: Bold, Quiet, Quote, Echo |
   | For Pixel | Material 3 Expressive on pure black, in your phone's own Material You colours. Shapes (Bloom, Cookies, Blobs), Flow (Waves, Flow), Pattern (Pills, Arches), Interface (Components: switches, sliders, chips, FAB and cards), Glow (Aura, Overlap) |
-  | Minimal   | Japanese ink: Lone Tree (sakura on a cliff), Koi Pond, Moon Fisher |
+  | Minimal   | Ink (Lone Tree, Koi Pond, Moon Fisher), Lines (Constellation, One Line, Contours, Orbits: a few hairlines on black) and Always-on (Glance: one small dim mark, over 99% of pixels off) |
   | Geometric | Crystal Cave, Art Deco (tower poster), Floating Isle (isometric island with a cottage and waterfall) |
   | Space     | Astronaut over Earth, Ringed World from a cratered moon, Black Hole, Eclipse |
   | Nature    | Northern Lights (curtains of rays over a lake), Moonlit Peaks (layered ranges), Starry Pines (Milky Way over a pine forest), Moon Path (the moon on open water) |
@@ -25,6 +26,13 @@ An Android wallpaper app that **generates** pitch-black AMOLED wallpapers on you
 - **Material 3 / Material You.** It uses the dynamic colour theme (Android 12+) with surfaces forced to true black. There's also a **Material You palette** that tints wallpapers with your system colours.
 - **14 palettes** (Mono, Neon Cyan, Sunset, Aurora, Sakura, Lava, Ocean, Acid, Violet, Gold, Candy, Graffiti, Hue Shift, Material You), or Auto, which picks palettes that suit each style.
 - **Sub-categories.** Each world is split into sub-categories, shown as a second row of chips once you pick one, so you narrow the feed instead of scrolling it. Doodle breaks into Classic, Comic, Cats and Space; elsewhere each style is its own.
+- **Daily wallpaper.** Turn it on from the clock icon on Explore and a fresh wallpaper is set about once a day in the background, from everything, your favourites or one world.
+- **Black level.** A slider that crushes dim glow and haze to pure `#000000` on any wallpaper, for a darker, more battery-friendly result.
+- **Clock preview.** See the wallpaper under a lock-screen clock or a home screen with icons before you apply it.
+- **Matching pair.** One tap sets this wallpaper on home and a sibling in the same style and colours on lock.
+- **Swipe to compare.** In the preview, swipe left for a new variation and right to go back.
+- **Share.** A wallpaper is a short recipe, so a shared link (or the code pasted into search) draws the identical wallpaper on another phone.
+- **Search, style pages and history.** Search styles and worlds, open a page of one style's variations with "More like this", and find what you opened lately under "Recently viewed".
 - **Detail slider.** Turn the density of stars, doodles, lines, windows and falling code up or down. It works on every wallpaper except Tarot, a fixed composition, where it is hidden.
 - **Arrangements (Doodle world).** Lay the doodles out as a Grid, Rings, Spiral, Wave, Mosaic, Burst, Diagonal, Frame (a border that leaves the middle clear for the clock), Shape (packed into a heart, star, moon or circle) or a loose Scatter. Auto picks one from the seed.
 - **Save** as a lossless PNG at screen size, QHD+ (1440×3200) or 4K (2160×3840). Files go to `Pictures/Zamoled`, and no storage permission is needed.

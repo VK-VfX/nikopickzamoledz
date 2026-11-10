@@ -108,6 +108,20 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.sp
+import com.nikopick.zamoled.data.ShareLink
 import com.nikopick.zamoled.data.FavoritesStore
 import com.nikopick.zamoled.data.Resolution
 import com.nikopick.zamoled.data.Screen
@@ -127,7 +141,7 @@ import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -> Unit) {
+fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -> Unit, onMoreLikeThis: (String) -> Unit = {}) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -146,6 +160,22 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
     var lastCelebration by remember { mutableStateOf("") }
     var resolution by rememberSaveable { mutableStateOf(Resolution.SCREEN) }
     var detail by remember(spec.styleId, spec.seed) { mutableFloatStateOf(spec.density) }
+    var blackLevel by remember(spec.styleId, spec.seed) { mutableFloatStateOf(spec.black) }
+    var words by remember(spec.styleId) { mutableStateOf(spec.text) }
+    var showClock by rememberSaveable { mutableStateOf(false) }
+    // Variations already seen, so a swipe right can go back to them.
+    val trail = remember { mutableStateListOf<WallpaperSpec>() }
+    var drag by remember { mutableFloatStateOf(0f) }
+
+    fun nextVariation() {
+        trail.add(spec)
+        if (trail.size > 30) trail.removeAt(0)
+        spec = spec.copy(seed = Random.nextLong())
+    }
+
+    fun previousVariation() {
+        if (trail.isNotEmpty()) spec = trail.removeAt(trail.size - 1)
+    }
     val zoom = remember { Animatable(1f) }
     val shuffleSpin = remember { Animatable(0f) }
 
@@ -203,6 +233,19 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
         if (ok) celebrate("Wallpaper applied") else snackbar.showSnackbar("Couldn't set the wallpaper on this device.")
     }
 
+    // The same style and palette twice: this one on the home screen, a sibling on the lock screen.
+    fun applyPair() = scope.launch {
+        busy = true
+        val home = bitmapFor(Resolution.SCREEN)
+        val sibling = spec.copy(seed = spec.seed xor 0x5DEECE66DL, paletteId = spec.palette.id)
+        val lock = withContext(renderDispatcher) { Renderer.render(sibling, Screen.width, Screen.height) }
+        val ok = WallpaperActions.setWallpaper(context, home, WallpaperTarget.HOME) &&
+            WallpaperActions.setWallpaper(context, lock, WallpaperTarget.LOCK)
+        lock.recycle()
+        busy = false
+        if (ok) celebrate("Matching pair applied") else snackbar.showSnackbar("Couldn't set the wallpaper on this device.")
+    }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         // Wallpaper preview: starts from the cached thumbnail so the shared-element flight has a picture,
         // then crossfades to the full-resolution render.
@@ -210,7 +253,18 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
             Modifier
                 .fillMaxSize()
                 .sharedWallpaper(initial.key, RectangleShape)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { chrome = !chrome },
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { chrome = !chrome }
+                // Swipe left for a new variation, right to go back to the last one.
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { drag = 0f },
+                        onDragEnd = {
+                            if (drag < -90f) nextVariation() else if (drag > 90f) previousVariation()
+                            drag = 0f
+                        },
+                        onDragCancel = { drag = 0f },
+                    ) { _, amount -> drag += amount }
+                },
         ) {
             placeholder?.let {
                 Image(it.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -230,6 +284,8 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
             }
         }
 
+        if (showClock) ClockOverlay(lockScreen = !chrome)
+
         AnimatedVisibility(
             visible = chrome,
             enter = slideInVertically(Motion.spatial()) { -it } + fadeIn(),
@@ -239,6 +295,8 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
             TopControls(
                 spec = spec,
                 favorite = favorites.isFavorite(spec),
+                clock = showClock,
+                onClock = { showClock = !showClock },
                 onBack = onBack,
                 onFavorite = {
                     favorites.toggle(spec)
@@ -260,6 +318,7 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                 shadowElevation = 12.dp,
                 modifier = Modifier
                     .navigationBarsPadding()
+                    .imePadding()
                     .padding(horizontal = 12.dp, vertical = 12.dp)
                     .fillMaxWidth(),
             ) {
@@ -288,6 +347,14 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                             onDetailDone = { spec = spec.copy(density = (detail * 10).roundToInt() / 10f) },
                             onResolution = { resolution = it },
                             onLayout = { spec = spec.copy(layoutId = it) },
+                            black = blackLevel,
+                            onBlack = { blackLevel = it },
+                            onBlackDone = { spec = spec.copy(black = (blackLevel * 20).roundToInt() / 20f) },
+                            words = words,
+                            onWords = { words = it.take(80).replace('|', ' ').replace('\n', ' ') },
+                            onWordsDone = { spec = spec.copy(text = words.trim()) },
+                            onShare = { ShareLink.share(context, spec) },
+                            onMore = { onMoreLikeThis(spec.styleId) },
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -401,6 +468,28 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                         },
                 )
             }
+            ListItem(
+                headlineContent = { Text("Matching pair", style = MaterialTheme.typography.titleMedium) },
+                supportingContent = { Text("This one on home, a sibling in the same style and colours on lock") },
+                leadingContent = {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(14.dp)),
+                    ) {
+                        Icon(Icons.Rounded.Wallpaper, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                    }
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable {
+                        showApply = false
+                        applyPair()
+                    },
+            )
             Spacer(Modifier.navigationBarsPadding().padding(bottom = 16.dp))
         }
     }
@@ -416,6 +505,14 @@ private fun CustomizePanel(
     onDetailDone: () -> Unit,
     onResolution: (Resolution) -> Unit,
     onLayout: (String) -> Unit,
+    black: Float,
+    onBlack: (Float) -> Unit,
+    onBlackDone: () -> Unit,
+    words: String,
+    onWords: (String) -> Unit,
+    onWordsDone: () -> Unit,
+    onShare: () -> Unit,
+    onMore: () -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -465,6 +562,33 @@ private fun CustomizePanel(
             }
             Slider(value = detail, onValueChange = onDetail, onValueChangeFinished = onDetailDone, valueRange = 0.4f..1.8f)
         }
+        if (spec.style.usesText) {
+            SectionLabel("Your words")
+            OutlinedTextField(
+                value = words,
+                onValueChange = onWords,
+                singleLine = true,
+                placeholder = { Text("Type something, then press Done") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onWordsDone() }),
+                trailingIcon = { IconButton(onClick = onWordsDone) { Icon(Icons.Rounded.CheckCircle, contentDescription = "Use these words") } },
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("Black level", Modifier.weight(1f))
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                Text(
+                    if (black < 0.03f) "Off" else "${(black * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                )
+            }
+        }
+        Slider(value = black, onValueChange = onBlack, onValueChangeFinished = onBlackDone, valueRange = 0f..1f)
         SectionLabel("Save resolution")
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             Resolution.entries.forEachIndexed { index, res ->
@@ -473,6 +597,52 @@ private fun CustomizePanel(
                     onClick = { onResolution(res) },
                     shape = SegmentedButtonDefaults.itemShape(index, Resolution.entries.size),
                 ) { Text(res.label) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(onClick = onShare, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Share")
+            }
+            FilledTonalButton(onClick = onMore, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Rounded.GridView, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("More like this")
+            }
+        }
+    }
+}
+
+/**
+ * A stand-in for the launcher, drawn over the preview: the lock-screen clock when the controls are
+ * hidden, and a clock widget with a row of app icons and a dock otherwise.
+ */
+@Composable
+private fun ClockOverlay(lockScreen: Boolean) {
+    val soft = Color.White.copy(alpha = 0.9f)
+    Box(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = if (lockScreen) 96.dp else 84.dp),
+        ) {
+            Text("Mon, 10 Nov", style = MaterialTheme.typography.titleMedium, color = soft)
+            Text(
+                "9:41",
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = if (lockScreen) 88.sp else 64.sp, fontWeight = FontWeight.Medium),
+                color = Color.White,
+            )
+        }
+        if (!lockScreen) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(26.dp),
+                modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(top = 150.dp, start = 28.dp, end = 28.dp),
+            ) {
+                repeat(2) {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        repeat(4) { Box(Modifier.size(54.dp).background(Color.White.copy(alpha = 0.22f), CircleShape)) }
+                    }
+                }
             }
         }
     }
@@ -506,7 +676,7 @@ private fun BlackMeter(share: Float?, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TopControls(spec: WallpaperSpec, favorite: Boolean, onBack: () -> Unit, onFavorite: () -> Unit) {
+private fun TopControls(spec: WallpaperSpec, favorite: Boolean, clock: Boolean, onClock: () -> Unit, onBack: () -> Unit, onFavorite: () -> Unit) {
     val glass = IconButtonDefaults.filledTonalIconButtonColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -550,6 +720,13 @@ private fun TopControls(spec: WallpaperSpec, favorite: Boolean, onBack: () -> Un
                     )
                 }
             }
+        }
+        FilledTonalIconButton(onClick = onClock, colors = glass, modifier = Modifier.padding(end = 8.dp).size(48.dp)) {
+            Icon(
+                Icons.Rounded.Schedule,
+                contentDescription = if (clock) "Hide clock preview" else "Preview with clock and icons",
+                tint = if (clock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            )
         }
         FilledTonalIconButton(onClick = onFavorite, colors = glass, modifier = Modifier.size(48.dp)) {
             Icon(
