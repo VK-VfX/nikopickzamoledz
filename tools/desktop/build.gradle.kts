@@ -103,6 +103,7 @@ val appImage = tasks.register<Exec>("appImage") {
         "--main-class", "com.nikopick.zamoled.desktop.Launcher",
         "--dest", out.absolutePath,
         "--add-modules", "java.se,jdk.unsupported,jdk.management,jdk.crypto.ec,jdk.charsets,jdk.zipfs,jdk.localedata,jdk.net,jdk.naming.dns",
+        "--verbose",
         "--java-options", "-Xmx3g",
         "--java-options", "-Dfile.encoding=UTF-8",
         "--java-options", "-Drobolectric.offline=true",
@@ -120,6 +121,14 @@ val finishImage = tasks.register<Copy>("finishImage") {
     from(layout.projectDirectory.dir("deps")) { include(androidAll); into("$appFolder/deps") }
     from("../../app/src/main/java/com/nikopick/zamoled/gen") { include("*.kt"); into("$appFolder/code") }
     into(dist.map { it.dir("Zamoled") })
+    // A zip without the launcher is worse than no zip: stop here, and say what was found instead.
+    doLast {
+        val root = dist.get().asFile
+        val launcher = File(root, if (isWindows) "Zamoled/Zamoled.exe" else "Zamoled/bin/Zamoled")
+        if (!launcher.exists()) {
+            throw GradleException("The app image has no launcher at $launcher. Found:\n" + root.walkTopDown().maxDepth(3).take(60).joinToString("\n") { it.relativeTo(root).path })
+        }
+    }
 }
 
 tasks.register<Zip>("distZip") {
