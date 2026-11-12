@@ -116,17 +116,20 @@ val appImage = tasks.register<Exec>("appImage") {
 // jpackage keeps the app folder at Zamoled/app on Windows and Zamoled/lib/app elsewhere.
 val appFolder = if (org.gradle.internal.os.OperatingSystem.current().isWindows) "app" else "lib/app"
 
-val finishImage = tasks.register<Copy>("finishImage") {
+// A plain step rather than a Copy task on purpose: Gradle empties the output folder of a Copy task that has no
+// history yet (a fresh checkout), and that folder is the app jpackage has just built.
+val finishImage = tasks.register("finishImage") {
     dependsOn(appImage)
-    from(layout.projectDirectory.dir("deps")) { include(androidAll); into("$appFolder/deps") }
-    from("../../app/src/main/java/com/nikopick/zamoled/gen") { include("*.kt"); into("$appFolder/code") }
-    into(dist.map { it.dir("Zamoled") })
-    // A zip without the launcher is worse than no zip: stop here, and say what was found instead.
     doLast {
-        val root = dist.get().asFile
-        val launcher = File(root, if (isWindows) "Zamoled/Zamoled.exe" else "Zamoled/bin/Zamoled")
+        val root = File(dist.get().asFile, "Zamoled")
+        val appDir = File(root, appFolder)
+        File(projectDir, "deps/$androidAll").copyTo(File(appDir, "deps/$androidAll"), overwrite = true)
+        file("../../app/src/main/java/com/nikopick/zamoled/gen").listFiles { f -> f.name.endsWith(".kt") }!!
+            .forEach { it.copyTo(File(appDir, "code/${it.name}"), overwrite = true) }
+        // A zip without the launcher is worse than no zip: stop here, and say what was found instead.
+        val launcher = File(root, if (isWindows) "Zamoled.exe" else "bin/Zamoled")
         if (!launcher.exists()) {
-            throw GradleException("The app image has no launcher at $launcher. Found:\n" + root.walkTopDown().maxDepth(3).take(60).joinToString("\n") { it.relativeTo(root).path })
+            throw GradleException("The app image has no launcher at $launcher. Found:\n" + dist.get().asFile.walkTopDown().maxDepth(3).take(60).joinToString("\n") { it.relativeTo(dist.get().asFile).path })
         }
     }
 }
