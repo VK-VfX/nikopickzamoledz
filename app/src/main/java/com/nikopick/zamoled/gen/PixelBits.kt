@@ -353,6 +353,15 @@ private val FONT = mapOf(
     'R' to arrayOf("110", "101", "110", "101", "101"), 'S' to arrayOf("011", "100", "010", "001", "110"),
     'T' to arrayOf("111", "010", "010", "010", "010"), 'V' to arrayOf("101", "101", "101", "101", "010"),
     'Y' to arrayOf("101", "101", "010", "010", "010"),
+    'U' to arrayOf("101", "101", "101", "101", "111"), 'F' to arrayOf("111", "100", "110", "100", "100"),
+    'B' to arrayOf("110", "101", "110", "101", "110"), 'K' to arrayOf("101", "101", "110", "101", "101"),
+    'W' to arrayOf("101", "101", "111", "111", "101"), 'X' to arrayOf("101", "101", "010", "101", "101"),
+    '0' to arrayOf("111", "101", "101", "101", "111"), '1' to arrayOf("010", "110", "010", "010", "111"),
+    '2' to arrayOf("110", "001", "010", "100", "111"), '3' to arrayOf("110", "001", "010", "001", "110"),
+    '4' to arrayOf("101", "101", "111", "001", "001"), '5' to arrayOf("111", "100", "110", "001", "110"),
+    '6' to arrayOf("011", "100", "110", "101", "010"), '7' to arrayOf("111", "001", "010", "010", "010"),
+    '8' to arrayOf("010", "101", "010", "101", "010"), '9' to arrayOf("010", "101", "011", "001", "110"),
+    '-' to arrayOf("000", "000", "111", "000", "000"), 'Z' to arrayOf("111", "001", "010", "100", "111"),
 )
 
 private fun pixelTextWidth(text: String): Int = text.map { if (it == ' ') 2 else 4 }.sum() - 1
@@ -446,164 +455,6 @@ object PixelSunset : Style("pixel_sunset", "Pixel Sunset", Category.PIXEL) {
     private fun Float.pow8(): Float { val a = this * this; val c = a * a; return c * c }
 }
 
-/** A banded ringed planet, big and centred in the clear band, with moons and a ship crossing below it. */
-object PixelPlanet : Style("pixel_planet", "Pixel Planet", Category.PIXEL) {
-    override val autoPalettes = listOf("violet", "ocean", "sunset", "aurora", "graffiti", "sakura")
-    override val widgetSafe: Boolean get() = true
-
-    override fun draw(s: Scene) {
-        val b = PixelBoard(s, 8f)
-        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
-        // A faint nebula low on the page, well behind where the icons sit.
-        val off = s.f(0f, 100f)
-        for (gy in (b.rows * 0.5f).toInt() until b.rows) for (gx in 0 until b.cols) {
-            val fadeIn = ((gy / b.rows.toFloat() - 0.5f) * 4f).coerceIn(0f, 1f)
-            val v = (s.noise.fbm(gx * 0.035f + off, gy * 0.03f) * 0.5f + 0.5f) - 0.5f
-            if (v > 0f && b.dither(gx, gy, v * 5f * fadeIn)) b.cell(gx, gy, darken(if (v > 0.12f) c2 else c0, 0.82f))
-        }
-        b.stars(s, 260, 0, b.rows, c1)
-        val pr = s.i(22, 27)
-        val pcx = b.cols / 2 + s.i(-10, 11)
-        val pcy = (b.rows * 0.37f).toInt()
-        val tilt = s.f(0.2f, 0.3f)
-        val rx = pr * 1.95f
-        val ry = rx * tilt
-        fun ring(front: Boolean) {
-            for (y in -ry.toInt()..ry.toInt()) for (x in -rx.toInt()..rx.toInt()) {
-                val d = (x / rx) * (x / rx) + (y / ry) * (y / ry)
-                if (d < 0.5f || d > 1f) continue
-                if ((y >= 0) != front) continue
-                if (!front && x * x + y * y < pr * pr) continue
-                val col = when { d < 0.66f -> lighten(c1, 0.2f); d < 0.82f -> darken(c1, 0.25f); else -> lighten(c1, 0.35f) }
-                b.cell(pcx + x, pcy + y, col)
-            }
-        }
-        ring(false)
-        for (y in -pr..pr) for (x in -pr..pr) {
-            val dx = x / pr.toFloat(); val dy = y / pr.toFloat()
-            val d = dx * dx + dy * dy
-            if (d > 1f) continue
-            val dz = sqrt(1f - d)
-            val light = dx * -0.6f + dy * -0.55f + dz * 0.55f
-            val band = sin(dy * 8f + s.noise.fbm(x * 0.12f, y * 0.12f) * 2.4f)
-            val base = if (band > 0.3f) c0 else if (band > -0.35f) c2 else darken(c0, 0.3f)
-            val tone = when {
-                light > 0.55f -> lighten(base, 0.35f)
-                light > 0.15f -> base
-                light > -0.2f -> if (b.dither(x, y, (light + 0.2f) / 0.35f)) base else darken(base, 0.55f)
-                else -> darken(base, 0.78f)
-            }
-            b.cell(pcx + x, pcy + y, tone)
-        }
-        ring(true)
-        // Two moons, a ship climbing past, and rocks drifting low.
-        b.disc(pcx + (pr * s.f(1.5f, 1.9f)).toInt(), pcy - pr + 2, 3, Color.rgb(190, 190, 205))
-        b.disc(pcx - (pr * s.f(1.5f, 1.8f)).toInt(), pcy + pr - 2, 2, Color.rgb(150, 140, 135))
-        val colors = mapOf('A' to Color.rgb(205, 210, 225), 'B' to Color.rgb(120, 220, 255), 'C' to c0, 'D' to Color.rgb(90, 95, 110),
-            'E' to Color.rgb(255, 170, 60), 'F' to Color.rgb(255, 230, 120))
-        b.sprite(SHIP, (b.cols * s.f(0.12f, 0.7f)).toInt(), (b.rows * s.f(0.52f, 0.56f)).toInt(), colors)
-        repeat(s.count(18)) {
-            val gx = s.i(0, b.cols); val gy = s.i((b.rows * 0.6f).toInt(), b.rows)
-            val rr = s.i(1, 4)
-            b.disc(gx, gy, rr, Color.rgb(100 + s.i(0, 40), 92 + s.i(0, 30), 88 + s.i(0, 30)))
-            if (rr > 1) b.cell(gx - 1, gy - 1, Color.rgb(165, 155, 145))
-        }
-        repeat(1 + (s.density * 1.4f).toInt()) {
-            val gx = s.i(10, b.cols - 6); val gy = s.i((b.rows * 0.07f).toInt(), (b.rows * 0.2f).toInt())
-            for (k in 0 until 9) b.cell(gx - k, gy - k / 2, Color.WHITE, 255 - k * 26)
-        }
-    }
-}
-
-/** A night train crossing the clear band: lit windows, steam, a moon behind the hills and poles with wires. */
-object PixelTrain : Style("pixel_train", "Pixel Night Train", Category.PIXEL) {
-    override val autoPalettes = listOf("ocean", "violet", "sunset", "gold", "sakura")
-    override val widgetSafe: Boolean get() = true
-
-    override fun draw(s: Scene) {
-        val b = PixelBoard(s, 8f)
-        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
-        val g = (b.rows * 0.45f).toInt()                       // the rail
-        val dir = if (s.chance(0.5f)) 1 else -1
-        b.stars(s, 150, 0, (g * 0.7f).toInt(), c2)
-        // The moon, and hills dithered against a faint glow.
-        val mx = (b.cols * s.f(0.22f, 0.78f)).toInt(); val my = (b.rows * 0.31f).toInt()
-        b.disc(mx, my, 9, lighten(c2, 0.78f)); b.disc(mx - 3, my - 2, 3, lighten(c2, 0.92f)); b.disc(mx + 3, my + 3, 2, lighten(c2, 0.55f))
-        for (gy in my - 20..g) for (gx in 0 until b.cols) {
-            val d = sqrt(((gx - mx) * (gx - mx) + (gy - my) * (gy - my)).toFloat())
-            if (d > 9f && d < 22f && b.dither(gx, gy, (1f - (d - 9f) / 13f) * 0.4f)) b.cell(gx, gy, darken(c2, 0.78f))
-        }
-        for (gx in 0 until b.cols) {
-            val top = g - 6 - ((s.noise.fbm(gx * 0.04f, 3f) + 0.5f).coerceIn(0f, 1.2f) * 17f).toInt()
-            for (gy in top..g) b.cell(gx, gy, if (b.dither(gx, gy, 0.25f) && gy - top < 3) darken(c1, 0.7f) else darken(c1, 0.9f))
-        }
-        // Poles and sagging wires.
-        val poleXs = (-5 until b.cols step 38).map { it + (s.noise.at(it * 0.1f, 1f) * 4f).toInt() }
-        for (px in poleXs) { for (gy in g - 25..g) b.cell(px, gy, Color.rgb(44, 40, 38)); b.rect(px - 3, g - 25, px + 3, g - 25, Color.rgb(44, 40, 38)) }
-        for (k in 0 until poleXs.size - 1) {
-            val x0 = poleXs[k]; val x1 = poleXs[k + 1]
-            for (gx in x0..x1) {
-                val t = (gx - x0) / (x1 - x0).toFloat()
-                b.cell(gx, g - 25 + (sin(t * 3.1416f) * 4f).toInt(), Color.rgb(70, 66, 66), 200)
-            }
-        }
-        // Wet ground: ballast, sleepers and the rails.
-        for (gy in g + 1..g + 7) for (gx in 0 until b.cols) if (b.dither(gx, gy, 0.55f - (gy - g) * 0.07f)) b.cell(gx, gy, Color.rgb(58, 56, 60))
-        for (gx in 0 until b.cols step 4) b.cell(gx, g + 1, Color.rgb(70, 52, 40))
-        for (gx in 0 until b.cols) { b.cell(gx, g, Color.rgb(150, 155, 165)); b.cell(gx, g + 2, Color.rgb(90, 95, 105)) }
-
-        // The train: a locomotive and carriages, drawn facing right, then flipped by [dir].
-        fun px(x: Int) = if (dir > 0) x else b.cols - 1 - x
-        val body = darken(c0, 0.72f)
-        val stripe = c1
-        val glass = Color.rgb(255, 205, 120)
-        var x = -4
-        val carriages = 4
-        val loco = 26
-        // Locomotive.
-        fun block(x0: Int, x1: Int, y0: Int, y1: Int, col: Int, alpha: Int = 255) {
-            for (xx in x0..x1) for (yy in y0..y1) b.cell(px(xx), yy, col, alpha)
-        }
-        block(x, x + 17, g - 9, g - 3, darken(c0, 0.78f))                       // boiler
-        block(x + 18, x + loco - 1, g - 14, g - 3, body)                       // cab
-        block(x + 17, x + loco, g - 15, g - 14, darken(body, 0.4f))             // cab roof
-        block(x + 3, x + 6, g - 14, g - 10, darken(body, 0.5f))                 // chimney
-        block(x + 2, x + 7, g - 15, g - 14, darken(body, 0.3f))
-        block(x + 10, x + 12, g - 12, g - 10, darken(body, 0.5f))               // dome
-        block(x + 20, x + 23, g - 12, g - 9, glass)                             // cab window
-        block(x, x + 17, g - 6, g - 6, stripe)
-        block(x - 1, x - 1, g - 8, g - 4, Color.rgb(255, 240, 160))             // headlamp
-        for (wx in intArrayOf(x + 2, x + 8, x + 14, x + 20)) { b.disc(px(wx), g - 2, 2, Color.rgb(30, 30, 36)); b.cell(px(wx), g - 2, c1) }
-        // Headlamp beam along the rails, and smoke streaming back.
-        for (k in 1..22) for (dy in -(k / 5)..(k / 5)) if (b.dither(px(x - 1 - k), g - 6 + dy, 0.5f * (1f - k / 22f))) b.cell(px(x - 1 - k), g - 6 + dy, Color.rgb(255, 240, 170), 140)
-        for (k in 0 until 6) {
-            val sxp = x + 5 + k * 5
-            val syp = g - 18 - k * 2 - (sin(k * 1.3f) * 1.5f).toInt()
-            b.disc(px(sxp), syp, 2 + k / 2, Color.rgb(150, 150, 165))
-        }
-        x += loco + 1
-        repeat(carriages + 2) {
-            val len = 25
-            block(x, x + len - 1, g - 12, g - 3, body)
-            block(x, x + len - 1, g - 13, g - 13, darken(body, 0.35f))
-            block(x, x + len - 1, g - 6, g - 6, stripe)
-            block(x, x, g - 12, g - 3, darken(body, 0.5f)); block(x + len - 1, x + len - 1, g - 12, g - 3, darken(body, 0.5f))
-            var wx = x + 2
-            while (wx < x + len - 4) {
-                if (s.chance(0.86f)) {
-                    block(wx, wx + 2, g - 11, g - 8, glass)
-                    if (s.chance(0.35f)) block(wx + 1, wx + 1, g - 10, g - 9, Color.rgb(40, 28, 24))             // a passenger
-                }
-                wx += 4
-            }
-            for (w in intArrayOf(x + 3, x + len - 5)) { b.disc(px(w), g - 2, 2, Color.rgb(30, 30, 36)); b.cell(px(w), g - 2, stripe) }
-            x += len + 1
-        }
-        // Light spilling onto the wet ballast below the windows.
-        for (gx in 0 until b.cols) if (s.chance(0.35f)) for (k in 3..6) if (b.dither(gx, g + k, 0.45f - k * 0.05f)) b.cell(gx, g + k, glass, 70)
-    }
-}
-
 /** A lighthouse on a cliff sweeping its beam across a dark sea, with the moon laid out on the water. */
 object PixelLighthouse : Style("pixel_lighthouse", "Pixel Lighthouse", Category.PIXEL) {
     override val autoPalettes = listOf("ocean", "violet", "gold", "sakura", "sunset")
@@ -675,72 +526,133 @@ object PixelLighthouse : Style("pixel_lighthouse", "Pixel Lighthouse", Category.
     }
 }
 
-/** An arcade cabinet in the dark, its marquee and screen lit, flanked by two more fading away. */
-object PixelArcade : Style("pixel_arcade", "Pixel Arcade", Category.PIXEL) {
-    override val autoPalettes = listOf("cyber", "violet", "ocean", "graffiti", "sunset", "lava")
+
+
+// ---------------------------------------------------------------------------------------------
+
+private val GAL_BEE = arrayOf(
+    "00B00000B00", "000B000B000", "00YYYYYYY00", "0YYRYYYRYY0", "YYYYYYYYYYY",
+    "YB0YYYYY0BY", "B00YYYYY00B", "0000Y0Y0000", "000YY0YY000",
+)
+private val GAL_BUTTERFLY = arrayOf(
+    "R000000000R", "RR0R000R0RR", "RRRRB0BRRRR", "RRRRBBBRRRR", "0RRRYBYRRR0", "00RR0B0RR00", "000R000R000",
+)
+private val GAL_BOSS = arrayOf(
+    "000P000P000", "00PPP0PPP00", "0GGPGGGPGG0", "GGGGGWGGGGG", "GGKGGGGGKGG", "GGGGGGGGGGG", "0GG0GGG0GG0", "G0G00G00G0G",
+)
+private val GAL_SHIP = arrayOf(
+    "0000W0000", "0000W0000", "000WWW000", "000WRW000", "0W0WWW0W0", "0WWWWWWW0", "WWRWWWRWW", "WBWWWWWBW", "WB0WBW0BW",
+)
+private val GAL_BOOM = arrayOf(
+    "000R000R000", "R00R0Y0R00R", "0RYY0Y0YYR0", "00YYWWWYY00", "RYYWWWWWYYR", "00YYWWWYY00", "0RYY0Y0YYR0", "R00R0Y0R00R", "000R000R000",
+)
+
+/**
+ * A Galaga-style space battle: a formation of bugs and bosses across the clear band, a fighter below
+ * firing up, a boss pulling with its tractor beam, divers trailing dots, and planets far behind.
+ */
+object PixelGalaxy : Style("pixel_planet", "Pixel Galaxy", Category.PIXEL) {
+    override val autoPalettes = listOf("violet", "ocean", "sunset", "aurora", "graffiti", "sakura")
     override val widgetSafe: Boolean get() = true
 
-    private val SAYINGS = listOf("INSERT" to "COIN", "GAME" to "OVER", "PLAY" to "AGAIN", "HI" to "SCORE")
-    private val ALIEN = arrayOf("0100010", "0010100", "0111110", "1101011", "1111111", "1011101", "0100010")
-
-    private fun cabinet(b: PixelBoard, s: Scene, cx: Int, y0: Int, w: Int, a: Float, hero: Boolean) {
-        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
-        fun c(x: Int, y: Int, col: Int, alpha: Int = 255) = b.cell(x, y, col, (alpha * a).toInt().coerceIn(0, 255))
-        fun r(x0: Int, y0_: Int, x1: Int, y1: Int, col: Int, alpha: Int = 255) { for (yy in y0_..y1) for (xx in x0..x1) c(xx, yy, col, alpha) }
-        val l = cx - w / 2; val rr = cx + w / 2 - 1
-        val body = Color.rgb(10, 10, 16)
-        val total = 56
-        r(l, y0, rr, y0 + total, body)
-        // Neon trim down both sides, and a side-art stripe.
-        for (yy in y0 until y0 + total) { c(l, yy, c0); c(rr, yy, c1); c(l + 2, yy, darken(c0, 0.5f), 150); c(rr - 2, yy, darken(c1, 0.5f), 150) }
-        // Marquee.
-        r(l + 3, y0 + 1, rr - 3, y0 + 6, Color.BLACK)
-        for (x in l + 3..rr - 3) { c(x, y0 + 1, lighten(c0, 0.3f)); c(x, y0 + 6, lighten(c1, 0.3f)) }
-        if (hero) b.text("ARCADE", cx - pixelTextWidth("ARCADE") / 2, y0 + 2, Color.WHITE)
-        else r(cx - 9, y0 + 3, cx + 9, y0 + 4, lighten(c2, 0.2f), 140)
-        // Screen: a bezel, a CRT glow, and the game.
-        val sx0 = l + 4; val sx1 = rr - 4; val sy0 = y0 + 9; val sy1 = y0 + 31
-        r(sx0 - 1, sy0 - 1, sx1 + 1, sy1 + 1, Color.rgb(28, 28, 36))
-        r(sx0, sy0, sx1, sy1, Color.BLACK)
-        val mx = (sx0 + sx1) / 2f; val my = (sy0 + sy1) / 2f
-        for (yy in sy0..sy1) for (xx in sx0..sx1) {
-            val d = sqrt((xx - mx) * (xx - mx) / 160f + (yy - my) * (yy - my) / 130f)
-            if (b.dither(xx, yy, (1f - d) * 0.7f)) c(xx, yy, darken(c1, 0.72f))
+    private fun planet(b: PixelBoard, s: Scene, cx: Int, cy: Int, r: Int, a: Int, c: Int, dim: Float) {
+        for (y in -r..r) for (x in -r..r) {
+            val dx = x / r.toFloat(); val dy = y / r.toFloat()
+            val d = dx * dx + dy * dy
+            if (d > 1f) continue
+            val light = dx * -0.6f + dy * -0.55f + sqrt(1f - d) * 0.55f
+            val band = sin(dy * 7f + s.noise.fbm(x * 0.12f, y * 0.12f) * 2.4f)
+            val base = if (band > 0.2f) a else if (band > -0.4f) c else darken(a, 0.3f)
+            val tone = when {
+                light > 0.5f -> lighten(base, 0.2f)
+                light > 0.1f -> base
+                light > -0.2f -> if (b.dither(x, y, (light + 0.2f) / 0.3f)) base else darken(base, 0.55f)
+                else -> darken(base, 0.8f)
+            }
+            b.cell(cx + x, cy + y, darken(tone, dim))
         }
-        if (hero) {
-            val (top, bottom) = SAYINGS[s.i(0, SAYINGS.size)]
-            val lit = Color.WHITE
-            b.text(top, cx - pixelTextWidth(top) / 2, sy0 + 8, lit)
-            b.text(bottom, cx - pixelTextWidth(bottom) / 2, sy0 + 15, lighten(c0, 0.4f))
-            for (k in 0 until 3) b.sprite(ALIEN, sx0 + 2 + k * 9, sy0 + 1 - 0, mapOf('1' to withAlpha(lighten(c2, 0.2f), 150)))
-            r(cx - 1, sy1 - 2, cx + 1, sy1 - 2, Color.rgb(120, 255, 160)); c(cx, sy1 - 3, Color.rgb(120, 255, 160))
-            for (yy in sy0..sy1 step 2) for (xx in sx0..sx1) c(xx, yy, Color.BLACK, 70)
-        } else {
-            r(sx0 + 2, sy0 + 2, sx1 - 2, sy1 - 2, darken(c2, 0.78f), 90)
-        }
-        // Control panel: a lit lip, a stick, three buttons and the coin door.
-        r(l + 1, y0 + 33, rr - 1, y0 + 35, Color.rgb(20, 20, 30))
-        for (x in l + 1..rr - 1) c(x, y0 + 33, lighten(c0, 0.2f), 200)
-        r(l + 5, y0 + 36, rr - 5, y0 + 40, Color.rgb(16, 16, 24))
-        c(l + 9, y0 + 38, Color.rgb(230, 40, 60)); c(l + 10, y0 + 38, Color.rgb(230, 40, 60)); c(l + 9, y0 + 37, Color.rgb(230, 40, 60)); c(l + 10, y0 + 37, Color.rgb(230, 40, 60))
-        c(l + 9, y0 + 39, Color.rgb(90, 90, 100))
-        for ((k, col) in listOf(c0, c1, c2).withIndex()) { val bx = cx + 2 + k * 4; r(bx, y0 + 37, bx + 1, y0 + 38, col) }
-        r(cx - 3, y0 + 44, cx + 3, y0 + 49, Color.rgb(8, 8, 12))
-        r(cx - 1, y0 + 45, cx + 1, y0 + 46, Color.rgb(255, 200, 80)); r(cx - 1, y0 + 48, cx + 1, y0 + 48, Color.rgb(255, 80, 70), 220)
-        // Light on the floor in front of it.
-        if (hero) for (k in 1..9) for (xx in l - 4..rr + 4) if (b.dither(xx, y0 + total + k, (0.42f - k * 0.045f) * (1f - abs(xx - cx) / (w * 0.75f)))) b.cell(xx, y0 + total + k, darken(c1, 0.55f))
     }
 
     override fun draw(s: Scene) {
         val b = PixelBoard(s, 8f)
-        val c1 = s.color(1)
-        val w = 38
-        val y0 = (b.rows * 0.275f).toInt()
-        // A back wall: one neon strip and a few stars in the window of the dark.
-        b.stars(s, 60, 0, (b.rows * 0.25f).toInt())
-        cabinet(b, s, b.cols / 2 - w - 8, y0 + 6, w, 0.3f, false)
-        cabinet(b, s, b.cols / 2 + w + 8, y0 + 6, w, 0.3f, false)
-        cabinet(b, s, b.cols / 2, y0, w, 1f, true)
-        for (gx in 0 until b.cols) b.cell(gx, y0 + 62, darken(c1, 0.6f), 130)
+        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
+        val R = b.rows; val C = b.cols
+        val ink = mapOf(
+            'Y' to Color.rgb(255, 214, 60), 'B' to Color.rgb(70, 120, 255), 'R' to Color.rgb(240, 52, 66), 'W' to Color.rgb(236, 240, 252),
+            'G' to Color.rgb(70, 220, 110), 'P' to Color.rgb(180, 90, 255), 'K' to Color.rgb(20, 20, 30),
+        )
+        // Stars in two depths, and short streaks for the scroll.
+        repeat(s.count(170)) { b.cell(s.i(0, C), s.i(0, R), Color.WHITE, s.i(40, 130)) }
+        repeat(s.count(70)) { b.cell(s.i(0, C), s.i(0, R), if (s.chance(0.6f)) Color.WHITE else lighten(s.anyColor(), 0.5f), s.i(140, 255)) }
+        repeat(s.count(26)) {
+            val gx = s.i(0, C); val gy = s.i(0, R); val len = s.i(3, 8)
+            for (k in 0 until len) b.cell(gx, gy + k, lighten(c1, 0.4f), 150 - k * 18)
+        }
+        // Worlds far behind: dark, low, and cropped by the edges.
+        planet(b, s, (C * 0.1f).toInt(), (R * 0.6f).toInt(), s.i(22, 30), c0, c2, 0.5f)
+        planet(b, s, (C * 0.9f).toInt(), (R * 0.51f).toInt(), s.i(7, 10), c1, c0, 0.4f)
+        // The formation.
+        val n = 9
+        val dx = 12; val dy = 10
+        val left = (C - n * dx) / 2 + 1
+        val top = (R * 0.255f).toInt()
+        val sway = s.i(-2, 3)
+        var boom = 0
+        val gaps = HashSet<Int>()
+        repeat(s.i(3, 7)) { gaps += s.i(0, 5 * n) }
+        for (row in 0 until 5) for (col in 0 until n) {
+            val idx = row * n + col
+            if (row == 0 && (col == 0 || col == n - 1 || col == 3 || col == 5) && false) continue
+            val gx = left + col * dx + sway
+            val gy = top + row * dy
+            if (idx in gaps) {
+                if (boom < 2) { b.sprite(GAL_BOOM, gx, gy - 1, ink); boom++ }
+                continue
+            }
+            val sprite = when (row) { 0 -> GAL_BOSS; 1, 2 -> GAL_BUTTERFLY; else -> GAL_BEE }
+            // A boss that has been hit once turns purple, and the whole row blinks in two tones.
+            val tone = if (row == 0 && s.chance(0.3f)) ink + mapOf('G' to Color.rgb(150, 90, 255)) else ink
+            b.sprite(sprite, gx, gy, tone)
+        }
+        // Divers: three bugs peeling out of the formation along curves, leaving dotted trails.
+        repeat(3) {
+            val sx = left + s.i(0, n) * dx + 5; val sy = top + s.i(1, 5) * dy
+            val dir = if (s.chance(0.5f)) 1 else -1
+            val len = s.i(30, 46)
+            for (k in 1..len) {
+                val t = k / len.toFloat()
+                val x = sx + dir * (sin(t * 5.2f) * 18f * t + t * 6f)
+                val y = sy + t * (R * 0.2f)
+                if (k < len && k % 3 == 0) b.cell(x.toInt(), y.toInt(), lighten(c1, 0.4f), (200 * (1f - t * 0.6f)).toInt())
+                if (k == len) b.sprite(if (s.chance(0.5f)) GAL_BEE else GAL_BUTTERFLY, x.toInt() - 5, y.toInt() - 4, ink)
+            }
+        }
+        // The player's fighter (sometimes a pair), its shots and the reserve ships.
+        val shipY = (R * 0.52f).toInt()
+        val shipX = s.i(24, C - 33)
+        b.sprite(GAL_SHIP, shipX, shipY, ink)
+        if (s.chance(0.45f)) b.sprite(GAL_SHIP, shipX + 10, shipY, ink)
+        val gunX = shipX + 4
+        for (k in 0 until s.i(2, 4)) for (r in 0 until 4) b.cell(gunX, shipY - 8 - k * 14 - r, if (r < 2) Color.WHITE else lighten(c1, 0.3f))
+        repeat(s.i(3, 6)) {
+            val gx = left + s.i(0, n) * dx + 5; val gy = top + 5 * dy + s.i(0, (R * 0.18f).toInt())
+            for (r in 0 until 3) b.cell(gx, gy + r, Color.rgb(255, 120 + r * 40, 60))
+        }
+        for (k in 0 until s.i(1, 3)) b.sprite(GAL_SHIP, 8 + k * 11, (R * 0.585f).toInt(), ink.mapValues { darken(it.value, 0.35f) })
+        // A boss's tractor beam, dithered blue, reaching down toward the fighter.
+        if (s.chance(0.4f)) {
+            val bx = left + 4 * dx + 5 + sway; val by = top + 9
+            for (k in 0 until (shipY - by - 4)) {
+                val half = 2 + k / 4
+                for (x in -half..half) if (b.dither(bx + x, by + k, 0.55f) && ((k / 2) % 2 == 0)) b.cell(bx + x, by + k, Color.rgb(90, 160, 255), 170)
+            }
+        }
+        // The scoreboard, inside the margins.
+        val white = Color.rgb(236, 240, 252)
+        val side = (C * 0.12f).toInt()
+        b.text("1UP", side, 13, Color.rgb(240, 52, 66))
+        b.text("00", side, 20, white)
+        b.text("HIGH SCORE", C / 2 - pixelTextWidth("HIGH SCORE") / 2, 13, Color.rgb(240, 52, 66))
+        b.text("30000", C / 2 - pixelTextWidth("30000") / 2, 20, white)
     }
 }

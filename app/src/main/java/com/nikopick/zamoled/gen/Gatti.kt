@@ -6,6 +6,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
@@ -377,15 +379,94 @@ private object CatArt {
     fun breeds(): List<Breed> = BREEDS
 }
 
-private fun Scene.catExtras(x: Float, y: Float, size: Float) {
+/** Cat things: yarn, fish, mice, bowls, bells, paw trails, tins, cushions and hearts. Fills come from the palette. */
+private fun Scene.catExtras(x: Float, y: Float, size: Float, kind: Int = i(0, 9)) {
     val pal = palette.colors
-    val col = intArrayOf(pal[i(0, pal.size)], Color.rgb(255, 150, 165), CREAM)
-    when (i(0, 5)) {
-        0 -> Doodles.sticker(this, 15, x, y, size, f(-25f, 25f), col, INK)      // paw
-        1 -> Doodles.sticker(this, 1, x, y, size, f(-25f, 25f), intArrayOf(Color.rgb(255, 120, 150), CREAM), INK)   // heart
-        2 -> Doodles.sticker(this, 38, x, y, size, f(-40f, 40f), intArrayOf(CREAM, pal[i(0, pal.size)]), INK)     // fish bone
-        3 -> Doodles.sticker(this, 10, x, y, size, 0f, intArrayOf(Color.rgb(255, 224, 120), CREAM), INK)          // sparkle
-        else -> Doodles.sticker(this, 0, x, y, size, f(-20f, 20f), intArrayOf(Color.rgb(255, 214, 90), CREAM), INK)
+    val c = pal[i(0, pal.size)]
+    val c2 = pal[i(0, pal.size)]
+    val ink = INK
+    val r = size
+    canvas.save()
+    canvas.translate(x, y)
+    canvas.rotate(f(-24f, 24f))
+    fun outline(p: Path, fillColor: Int, w: Float = 3f) { canvas.drawPath(p, fill(fillColor)); canvas.drawPath(p, stroke(ink, w)) }
+    when (kind) {
+        0 -> {   // yarn ball with a thread trailing off
+            canvas.drawCircle(0f, 0f, r, fill(c)); canvas.drawCircle(0f, 0f, r, stroke(ink, 3f))
+            for (k in -1..1) canvas.drawArc(RectF(-r * 0.9f, -r * 0.9f + k * r * 0.35f, r * 0.9f, r * 0.9f + k * r * 0.35f), 200f, 140f, false, stroke(lighten(c, 0.5f), 2.4f))
+            canvas.drawArc(RectF(-r * 0.6f, -r * 0.95f, r * 1.1f, r * 0.7f), 300f, 120f, false, stroke(lighten(c, 0.5f), 2.4f))
+            val thread = Path().apply { moveTo(r * 0.8f, r * 0.55f); cubicTo(r * 1.6f, r * 0.9f, r * 1.2f, r * 1.7f, r * 2.2f, r * 1.4f) }
+            canvas.drawPath(thread, stroke(ink, 5.4f)); canvas.drawPath(thread, stroke(c, 2.6f))
+        }
+        1 -> {   // fish
+            val body = Path().apply { moveTo(-r, 0f); cubicTo(-r * 0.4f, -r * 0.8f, r * 0.5f, -r * 0.6f, r * 0.9f, 0f); cubicTo(r * 0.5f, r * 0.6f, -r * 0.4f, r * 0.8f, -r, 0f); close() }
+            val tail = Path().apply { moveTo(r * 0.8f, 0f); lineTo(r * 1.5f, -r * 0.55f); lineTo(r * 1.5f, r * 0.55f); close() }
+            outline(tail, c2); outline(body, c)
+            canvas.drawCircle(-r * 0.55f, -r * 0.1f, r * 0.11f, fill(ink)); canvas.drawCircle(-r * 0.58f, -r * 0.14f, r * 0.04f, fill(Color.WHITE))
+            canvas.drawArc(RectF(-r * 0.2f, -r * 0.5f, r * 0.5f, r * 0.5f), 250f, 140f, false, stroke(ink, 2.2f))
+        }
+        2 -> {   // mouse
+            val tail = Path().apply { moveTo(r * 0.9f, r * 0.15f); cubicTo(r * 1.7f, r * 0.4f, r * 1.3f, -r * 0.6f, r * 2f, -r * 0.5f) }
+            canvas.drawPath(tail, stroke(ink, 5f)); canvas.drawPath(tail, stroke(Color.rgb(255, 170, 185), 2.4f))
+            for (sx in intArrayOf(-1, 1)) { canvas.drawCircle(sx * r * 0.35f - r * 0.2f, -r * 0.55f, r * 0.34f, fill(Color.rgb(255, 170, 185))); canvas.drawCircle(sx * r * 0.35f - r * 0.2f, -r * 0.55f, r * 0.34f, stroke(ink, 3f)) }
+            val body = Path().apply { moveTo(-r, r * 0.3f); cubicTo(-r * 0.9f, -r * 0.6f, r * 0.5f, -r * 0.7f, r, r * 0.3f); close() }
+            outline(body, mix(c, Color.rgb(200, 200, 215), 0.6f))
+            canvas.drawCircle(-r * 0.85f, r * 0.25f, r * 0.1f, fill(Color.rgb(255, 120, 150)))
+            canvas.drawCircle(-r * 0.5f, -r * 0.05f, r * 0.08f, fill(ink))
+        }
+        3 -> {   // bowl of kibble
+            repeat(5) { canvas.drawCircle(f(-r * 0.7f, r * 0.7f), -r * f(0.1f, 0.4f), r * 0.17f, fill(Color.rgb(214, 150, 90))) }
+            val bowl = Path().apply { moveTo(-r, -r * 0.05f); lineTo(r, -r * 0.05f); cubicTo(r * 0.9f, r * 0.9f, -r * 0.9f, r * 0.9f, -r, -r * 0.05f); close() }
+            outline(bowl, c)
+            canvas.drawLine(-r * 0.5f, r * 0.35f, r * 0.5f, r * 0.35f, stroke(lighten(c, 0.5f), 2.4f))
+            canvas.drawRect(-r * 0.12f, r * 0.0f, r * 0.12f, r * 0.2f, fill(lighten(c, 0.6f)))
+        }
+        4 -> {   // bell on a ribbon
+            canvas.drawRect(-r * 1.1f, -r * 1.05f, r * 1.1f, -r * 0.8f, fill(c2)); canvas.drawRect(-r * 1.1f, -r * 1.05f, r * 1.1f, -r * 0.8f, stroke(ink, 3f))
+            val bell = Path().apply { moveTo(-r * 0.75f, r * 0.55f); cubicTo(-r * 0.75f, -r * 0.9f, r * 0.75f, -r * 0.9f, r * 0.75f, r * 0.55f); close() }
+            outline(bell, Color.rgb(255, 208, 90))
+            canvas.drawLine(-r * 0.9f, r * 0.55f, r * 0.9f, r * 0.55f, stroke(ink, 3f))
+            canvas.drawCircle(0f, r * 0.8f, r * 0.15f, fill(Color.rgb(255, 208, 90))); canvas.drawCircle(0f, r * 0.8f, r * 0.15f, stroke(ink, 2.4f))
+        }
+        5 -> {   // a trail of paw prints
+            for (k in 0 until 4) {
+                val px = k * r * 0.9f - r * 1.4f; val py = (if (k % 2 == 0) -r * 0.3f else r * 0.3f)
+                canvas.drawOval(RectF(px - r * 0.22f, py - r * 0.12f, px + r * 0.22f, py + r * 0.26f), fill(c))
+                for (t in -1..2) canvas.drawCircle(px + (t - 0.5f) * r * 0.2f, py - r * 0.26f - (if (t == 0 || t == 1) r * 0.07f else 0f), r * 0.08f, fill(c))
+            }
+        }
+        6 -> {   // tin of tuna
+            canvas.drawRoundRect(RectF(-r * 0.9f, -r * 0.5f, r * 0.9f, r * 0.6f), r * 0.2f, r * 0.2f, fill(Color.rgb(205, 210, 225)))
+            canvas.drawRoundRect(RectF(-r * 0.9f, -r * 0.5f, r * 0.9f, r * 0.6f), r * 0.2f, r * 0.2f, stroke(ink, 3f))
+            canvas.drawRect(-r * 0.9f, -r * 0.2f, r * 0.9f, r * 0.3f, fill(c))
+            canvas.drawLine(-r * 0.9f, -r * 0.2f, r * 0.9f, -r * 0.2f, stroke(ink, 2.4f)); canvas.drawLine(-r * 0.9f, r * 0.3f, r * 0.9f, r * 0.3f, stroke(ink, 2.4f))
+            canvas.drawOval(RectF(-r * 0.3f, -r * 0.12f, r * 0.3f, r * 0.22f), fill(lighten(c, 0.6f)))
+            canvas.drawCircle(r * 0.7f, -r * 0.55f, r * 0.2f, stroke(ink, 3f))
+        }
+        7 -> {   // heart
+            val heart = Path().apply { moveTo(0f, r * 0.9f); cubicTo(-r * 1.5f, -r * 0.1f, -r * 0.7f, -r * 1.1f, 0f, -r * 0.4f); cubicTo(r * 0.7f, -r * 1.1f, r * 1.5f, -r * 0.1f, 0f, r * 0.9f); close() }
+            outline(heart, Color.rgb(255, 120, 150))
+            canvas.drawArc(RectF(-r * 0.8f, -r * 0.6f, -r * 0.2f, -r * 0.1f), 200f, 80f, false, stroke(Color.WHITE, 2.4f, 200))
+        }
+        else -> {   // a cushion with a button
+            canvas.drawRoundRect(RectF(-r, -r * 0.7f, r, r * 0.7f), r * 0.35f, r * 0.35f, fill(c))
+            canvas.drawRoundRect(RectF(-r, -r * 0.7f, r, r * 0.7f), r * 0.35f, r * 0.35f, stroke(ink, 3f))
+            for (a in 0 until 4) { val ang = a * 1.5708f + 0.785f; canvas.drawLine(0f, 0f, cos(ang) * r * 0.8f, sin(ang) * r * 0.5f, stroke(darken(c, 0.25f), 2f)) }
+            canvas.drawCircle(0f, 0f, r * 0.16f, fill(c2)); canvas.drawCircle(0f, 0f, r * 0.16f, stroke(ink, 2.4f))
+        }
+    }
+    canvas.restore()
+}
+
+/** Tiny paw prints, hearts and stars between the cats so the page is never bare at high Detail. */
+private fun Scene.catTexture(n: Int) {
+    repeat(count(n)) {
+        val x = f(0f, w); val y = f(0f, h); val r = f(5f, 9f)
+        when (i(0, 3)) {
+            0 -> { canvas.drawOval(RectF(x - r, y - r * 0.6f, x + r, y + r), fill(Color.WHITE, 70)); for (t in -1..1) canvas.drawCircle(x + t * r * 0.8f, y - r * 1.2f, r * 0.34f, fill(Color.WHITE, 70)) }
+            1 -> canvas.drawCircle(x, y, r * 0.3f, fill(Color.WHITE, 90))
+            else -> { val p = stroke(Color.WHITE, 1.6f, 110); canvas.drawLine(x - r, y, x + r, y, p); canvas.drawLine(x, y - r, x, y + r, p) }
+        }
     }
 }
 
@@ -395,32 +476,31 @@ object Gatti : Style("gatti", "Cat Club", Category.DOODLE) {
 
     override fun draw(s: Scene) {
         val breeds = CatArt.breeds().shuffled(s.rnd)
-        var n = 0
         val cell = 215f / sqrt(s.density)
+        s.catTexture(90)
+        var n = 0
         for (p in s.spots(s.layout, 215f)) {
-            if (s.chance(0.84f)) {
+            if (s.chance(0.86f)) {
+                // Cats scale with the cell, so more Detail means more, smaller cats rather than a pile-up.
+                val hero = s.chance(0.16f)
+                val size = cell * s.f(0.31f, 0.38f) * p.scale * (if (hero) 1.3f else 1f)
                 val b = breeds[n++ % breeds.size]
                 val pose = if (s.chance(0.6f)) 0 else 1
-                CatArt.cat(s, p.x, p.y, s.f(66f, 84f) * p.scale, p.rot + s.f(-6f, 6f), b, pose, s.i(0, 6), s.chance(0.75f))
+                CatArt.cat(s, p.x, p.y, size, p.rot + s.f(-6f, 6f), b, pose, s.i(0, 6), size > 52f && s.chance(0.8f))
+                // Sometimes a smaller friend loafs beside it.
+                if (!hero && s.chance(0.2f)) {
+                    val friend = breeds[n++ % breeds.size]
+                    CatArt.cat(s, p.x + size * 0.85f, p.y + size * 0.3f, size * 0.62f, p.rot + s.f(-10f, 10f), friend, 1, s.i(0, 6), false)
+                }
             } else {
-                s.catExtras(p.x, p.y, s.f(38f, 52f))
+                s.catExtras(p.x, p.y, cell * s.f(0.16f, 0.22f))
             }
-            repeat(2) { s.catExtras(p.x + s.f(-cell / 2f, cell / 2f), p.y + s.f(-cell / 2f, cell / 2f), s.f(14f, 22f)) }
+            // Cat things placed around it, never on top of it.
+            repeat(if (s.density > 1.1f) s.i(2, 4) else s.i(1, 3)) {
+                val a = s.f(0f, TAU); val d = cell * s.f(0.42f, 0.56f)
+                s.catExtras(p.x + cos(a) * d, p.y + sin(a) * d * 0.85f, cell * s.f(0.07f, 0.115f))
+            }
         }
     }
 }
 
-/** Big cat faces, one breed to a sticker, each pulling a different face. */
-object GattiSketch : Style("gatti_sketch", "Cat Faces", Category.DOODLE) {
-    override val autoPalettes = listOf("candy", "sakura", "sunset", "ocean", "aurora", "graffiti")
-
-    override fun draw(s: Scene) {
-        val breeds = CatArt.breeds().shuffled(s.rnd)
-        var n = 0
-        for (p in s.spots(s.layout, 250f)) {
-            val b = breeds[n++ % breeds.size]
-            CatArt.cat(s, p.x, p.y, s.f(92f, 116f) * p.scale, p.rot + s.f(-8f, 8f), b, 2, s.i(0, 6), false)
-            if (s.chance(0.5f)) s.catExtras(p.x + s.f(-110f, 110f), p.y + s.f(-110f, 110f), s.f(22f, 34f))
-        }
-    }
-}

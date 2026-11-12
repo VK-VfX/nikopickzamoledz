@@ -48,8 +48,8 @@ fun OnboardingScreen(onDone: (Set<String>) -> Unit) {
             .padding(horizontal = 24.dp),
     ) {
         Spacer(Modifier.height(48.dp))
-        Text("Welcome to", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        GradientText("Zamoled", style = MaterialTheme.typography.displaySmall)
+        MonoLabel("Welcome to")
+        Wordmark()
         Spacer(Modifier.height(12.dp))
         Text(
             "Pitch-black wallpapers, drawn on your phone. Pick the worlds you like and your feed will lean toward them. You can still browse everything.",

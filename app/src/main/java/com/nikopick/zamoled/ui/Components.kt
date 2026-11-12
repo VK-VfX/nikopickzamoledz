@@ -67,8 +67,6 @@ val Category.icon: ImageVector
         Category.LAB -> Icons.Rounded.Science
         Category.WORDS -> Icons.Rounded.FormatQuote
         Category.MINIMAL -> Icons.Rounded.RadioButtonUnchecked
-        Category.GEOMETRIC -> Icons.Rounded.Category
-        Category.SPACE -> Icons.Rounded.NightsStay
         Category.NATURE -> Icons.Rounded.Landscape
         Category.AUDIO -> Icons.Rounded.GraphicEq
         Category.CITY -> Icons.Rounded.LocationCity
@@ -85,8 +83,6 @@ fun Category.polygon(): RoundedPolygon = when (this) {
     Category.LAB -> RoundedPolygon.star(6, radius = 1f, innerRadius = 0.7f, rounding = CornerRounding(0.28f))
     Category.WORDS -> RoundedPolygon(4, rounding = CornerRounding(0.45f))
     Category.MINIMAL -> RoundedPolygon.circle(numVertices = 10)
-    Category.GEOMETRIC -> RoundedPolygon(6, rounding = CornerRounding(0.25f))
-    Category.SPACE -> RoundedPolygon.star(5, radius = 1f, innerRadius = 0.58f, rounding = CornerRounding(0.2f))
     Category.NATURE -> RoundedPolygon(3, rounding = CornerRounding(0.35f))
     Category.AUDIO -> RoundedPolygon.star(6, radius = 1f, innerRadius = 0.72f, rounding = CornerRounding(0.2f))
     Category.CITY -> RoundedPolygon(8, rounding = CornerRounding(0.12f))

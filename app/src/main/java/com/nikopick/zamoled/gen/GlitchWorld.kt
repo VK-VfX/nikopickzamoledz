@@ -549,6 +549,10 @@ private class Row(
     val gutter: String? = null,
     /** An easter egg line: lit in the accent colour so it can be found. */
     val egg: Boolean = text.trim() in EGG_SET,
+    /** Column where the line starts to fade away into the dark; -1 for a line that stays whole. */
+    val eat: Int = -1,
+    /** A faint, offset second copy of the line, like a ghost image. */
+    val echo: Boolean = false,
 )
 
 /** Little surprises hidden in every code wallpaper. */
@@ -649,6 +653,11 @@ private fun Scene.drawRows(
             canvas.drawText(row.gutter, margin + gutterCols * adv - adv * 1.1f, y, paint)
             paint.textAlign = Paint.Align.LEFT
         }
+        if (row.echo && row.segs == null) {
+            paint.color = withAlpha(th.err, (70 * lum).toInt())
+            paint.clearShadowLayer()
+            canvas.drawText(row.text.take(cols), codeX + 9f, y + 4f, paint)
+        }
         val segs = row.segs ?: if (row.egg) listOf(row.text to lighten(th.fn, 0.25f)) else highlight(row.text.take(cols), th)
         var col = 0
         for ((tok0, color) in segs) {
@@ -657,6 +666,18 @@ private fun Scene.drawRows(
             if (color != Color.TRANSPARENT) {
                 val chars = tok.toCharArray()
                 var hit = false
+                if (row.eat >= 0 && col + tok.length > row.eat) {
+                    // The line is being consumed: each character dimmer than the one before it.
+                    for (k in chars.indices) {
+                        val fadeOut = 1f - ((col + k - row.eat) / 14f).coerceIn(0f, 1f)
+                        if (fadeOut <= 0.02f || chars[k] == ' ') continue
+                        paint.clearShadowLayer()
+                        paint.color = withAlpha(color, (255 * lum * fadeOut).toInt())
+                        canvas.drawText(chars[k].toString(), codeX + (col + k) * adv, y, paint)
+                    }
+                    col += tok0.length
+                    continue
+                }
                 val rate = corrupt + rot * (1f - lum)
                 if (rate > 0f) for (k in chars.indices) if (chars[k] != ' ' && chance(rate)) { chars[k] = NOISE[i(0, NOISE.length)]; hit = true }
                 val hot = lum > 0.5f
@@ -854,48 +875,16 @@ private object CodePoster : CodeStyle("code_poster", "Big Code", 9f, 4, 90f) {
 }
 
 /**
- * An editor that is not just breaking: it is being watched. Blood-red code rots toward the edges, lines
- * are overwritten with messages, two eyes open behind the text and something runs down the screen.
+ * Code that is being eaten. Blood-red lines fade out mid-sentence, words go missing, whole lines are
+ * left as ghosts, and the dark closes in from the edges. Now and then something is written in its place.
  */
-private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 7f, 14, 90f) {
+private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 6f, 10, 70f) {
     override val usesPalette: Boolean get() = false
     private val DREAD = listOf(
         "HELP ME", "I SEE YOU", "DON'T LOOK BEHIND YOU", "IT IS INSIDE THE CODE", "WHO IS WRITING THIS",
         "I CAN HEAR YOU TYPING", "WAKE UP", "YOU SHOULD NOT HAVE RUN THIS", "NO ONE IS HERE", "LET ME OUT",
         "IT KNOWS YOUR NAME", "STOP SCROLLING", "BEHIND YOU", "THE CAT IS NOT A CAT 🐈",
     )
-
-    private fun Scene.eyes() {
-        val y0 = h * 0.4f
-        for (side in intArrayOf(-1, 1)) {
-            val ex = cx + side * 245f
-            val eye = Path().apply {
-                moveTo(ex - 225f, y0); quadTo(ex, y0 - 260f, ex + 225f, y0); quadTo(ex, y0 + 220f, ex - 225f, y0); close()
-            }
-            canvas.drawPath(eye, fill(Color.rgb(48, 0, 6), 210, 6f))
-            canvas.save()
-            canvas.clipPath(eye)
-            val ix = ex + f(-34f, 34f)
-            canvas.drawCircle(ix, y0, 100f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(ix, y0, 100f, intArrayOf(Color.rgb(255, 70, 40), Color.rgb(170, 0, 14), Color.rgb(40, 0, 4)), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
-            })
-            repeat(18) {
-                val a = f(0f, TAU); val r0 = f(95f, 200f)
-                val vx = ex + cos(a) * r0; val vy = y0 + sin(a) * r0 * 0.55f
-                canvas.drawLine(vx, vy, ix + cos(a) * 80f, y0 + sin(a) * 50f, stroke(Color.rgb(180, 0, 20), f(1f, 2.6f), 150))
-            }
-            canvas.drawOval(RectF(ix - 15f, y0 - 92f, ix + 15f, y0 + 92f), fill(Color.BLACK))
-            canvas.drawCircle(ix - 26f, y0 - 24f, 7f, fill(Color.WHITE, 150))
-            canvas.restore()
-            canvas.drawPath(eye, stroke(Color.rgb(255, 30, 50), 3f, 230, 9f))
-        }
-        // Something running down from them.
-        repeat(i(9, 16)) {
-            val x = f(0f, w); val y = f(h * 0.18f, h * 0.7f); val len = f(70f, 380f); val wd = f(3f, 8f)
-            canvas.drawLine(x, y, x, y + len, stroke(Color.rgb(190, 0, 22), wd, 200))
-            canvas.drawCircle(x, y + len, wd * 1.35f, fill(Color.rgb(190, 0, 22), 220))
-        }
-    }
 
     override fun paintCode(s: Scene) {
         val th = CodeTheme(
@@ -906,26 +895,41 @@ private object CodeCorrupt : CodeStyle("code_corrupt", "Corrupted", 7f, 14, 90f)
         val src = s.source()
         val lead = 27.5f; val rows = s.rowCount(lead); val focus = s.focusRow(lead)
         val start = s.windowStart(src, rows, focus)
-        s.eyes()
-        val blood = Color.argb(120, 255, 0, 20)
         val list = (0 until rows).mapNotNull { k ->
             val line = src.lines.getOrNull(start + k) ?: return@mapNotNull null
+            val num = (start + k + 1).toString()
+            val dist = abs(k - focus) / rows.toFloat()                 // the further from the lit row, the more decayed
             when {
-                k == focus -> Row(segs = listOf(DREAD[s.i(0, DREAD.size)].toList().joinToString(" ") to Color.WHITE), bg = blood)
-                k != focus && s.chance(0.05f) -> Row(segs = listOf(DREAD[s.i(0, DREAD.size)] to th.err), gutter = "!")
-                s.chance(0.07f) -> {
-                    val n = s.i(8, 56)
-                    Row(segs = listOf(String(CharArray(n) { NOISE[s.i(0, NOISE.length)] }) to (if (s.chance(0.5f)) th.err else th.accent)), gutter = "?")
+                k == focus -> Row(segs = listOf(DREAD[s.i(0, DREAD.size)].toList().joinToString(" ") to Color.WHITE), bg = Color.argb(110, 255, 0, 20))
+                s.chance(0.04f) -> Row(segs = listOf(DREAD[s.i(0, DREAD.size)] to th.err), gutter = "!")
+                // A line that just stops, the rest of it dissolving after the last whole word.
+                s.chance(0.22f + dist * 0.5f) -> Row(line, gutter = num, eat = s.i(4, 38))
+                // Words that have vanished from the middle of a line.
+                s.chance(0.2f) -> {
+                    val words = line.split(' ').toMutableList()
+                    repeat(s.i(1, 3)) { val at = s.i(0, words.size); words[at] = " ".repeat(words[at].length) }
+                    Row(words.joinToString(" "), gutter = num)
                 }
-                s.chance(0.09f) -> Row(line.reversed().trimEnd(), gutter = (start + k + 1).toString())
-                else -> Row(line, gutter = (start + k + 1).toString())
+                // A line that has gone, leaving the shape of its first few characters.
+                s.chance(0.1f + dist * 0.2f) -> Row(line, gutter = num, eat = s.i(0, 4))
+                s.chance(0.1f) -> Row(line.reversed().trimEnd(), gutter = num, echo = true)
+                s.chance(0.14f) -> Row(line, gutter = num, echo = true)
+                else -> Row(line, gutter = num)
             }
         }
-        s.drawRows(list, th, 19f, lead, 5, 0.3f, 0.6f, 0.015f, focus, cursor = true, bar = false, rot = 0.18f)
-        repeat(s.i(4, 9)) {
-            val y = s.f(0f, s.h)
-            s.canvas.drawRect(s.f(0f, s.w * 0.6f), y, s.f(s.w * 0.4f, s.w), y + s.f(8f, 70f), s.fill(Color.BLACK))
+        s.drawRows(list, th, 19f, lead, 5, 0.27f, 0.3f, 0.012f, focus, cursor = true, bar = false, rot = 0.16f)
+        // Parts of the page the dark has already taken, soft on the side the text is dissolving from.
+        repeat(s.i(5, 9)) {
+            val y = s.rowCount(lead).let { n -> 26f + lead * s.i(0, n) }
+            val x0 = s.f(0f, s.w * 0.7f); val len = s.f(260f, 640f); val hh = lead * s.i(1, 5)
+            val p = Paint().apply { shader = LinearGradient(x0, 0f, x0 + len, 0f, intArrayOf(0, Color.BLACK, Color.BLACK), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP) }
+            s.canvas.drawRect(x0, y, minOf(s.w, x0 + len), y + hh, p)
         }
+        // The dark closing in from every side.
+        val vignette = Paint().apply {
+            shader = RadialGradient(s.cx, s.h * 0.4f, s.h * 0.62f, intArrayOf(0, 0, withAlpha(Color.BLACK, 215)), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+        }
+        s.canvas.drawRect(0f, 0f, s.w, s.h, vignette)
     }
 }
 

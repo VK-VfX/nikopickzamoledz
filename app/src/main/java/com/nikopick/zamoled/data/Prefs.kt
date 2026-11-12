@@ -34,6 +34,24 @@ class Prefs(context: Context) {
     )
         private set
 
+    /** Check for new versions on launch and in the background. */
+    var autoUpdate: Boolean by mutableStateOf(prefs.getBoolean(AUTO_UPDATE, true))
+        private set
+
+    /** A version the user chose not to be reminded about. */
+    var skippedVersion: String by mutableStateOf(prefs.getString(SKIPPED, "").orEmpty())
+        private set
+
+    fun changeAutoUpdate(on: Boolean) {
+        autoUpdate = on
+        prefs.edit().putBoolean(AUTO_UPDATE, on).apply()
+    }
+
+    fun skip(version: String) {
+        skippedVersion = version
+        prefs.edit().putString(SKIPPED, version).apply()
+    }
+
     fun remember(spec: WallpaperSpec) {
         history = (listOf(spec.key) + history.filter { it != spec.key }).take(MAX_HISTORY)
         prefs.edit().putString(HISTORY, history.joinToString("\n")).apply()
@@ -56,6 +74,9 @@ class Prefs(context: Context) {
         private const val HISTORY = "history"
         private const val ONBOARDED = "onboarded"
         private const val LIKES = "likes"
+        const val AUTO_UPDATE = "auto_update"
+        const val SKIPPED = "skipped_version"
+        const val NOTIFIED = "notified_version"
         const val AUTO_ON = "auto_on"
         const val AUTO_SOURCE = "auto_source"
         const val AUTO_TARGET = "auto_target"

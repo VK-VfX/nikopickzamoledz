@@ -10,6 +10,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import com.nikopick.zamoled.data.Screen
 import com.nikopick.zamoled.gen.CodeSource
+import com.nikopick.zamoled.data.Prefs
+import com.nikopick.zamoled.data.Updates
+import com.nikopick.zamoled.ui.ThumbCache
 import com.nikopick.zamoled.data.ShareLink
 import com.nikopick.zamoled.ui.ZamoledApp
 import com.nikopick.zamoled.ui.ZamoledTheme
@@ -26,6 +29,9 @@ class MainActivity : ComponentActivity() {
         )
         Screen.init(this)
         CodeSource.init(assets)
+        ThumbCache.init(this)
+        Updates.schedule(this, getSharedPreferences("zamoled", MODE_PRIVATE).getBoolean(Prefs.AUTO_UPDATE, true))
+        Updates.cleanOld(this)
         if (savedInstanceState == null) readLink(intent)
         setContent {
             ZamoledTheme {

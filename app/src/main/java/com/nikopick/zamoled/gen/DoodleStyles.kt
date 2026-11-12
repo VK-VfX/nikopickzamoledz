@@ -851,7 +851,16 @@ object SpaceDoodles : Style("space_doodles", "Space Doodles", Category.DOODLE) {
             val y = p.y
             val sc = p.scale
             val rot = p.rot + s.f(-12f, 12f)
-            when (s.i(0, 11)) {
+            when (s.i(0, 21)) {
+                11, 12 -> alien(s, x, y, s.f(40f, 56f) * sc, rot, pal)
+                13 -> robot(s, x, y, s.f(38f, 52f) * sc, rot, pal)
+                14 -> moonFace(s, x, y, s.f(40f, 58f) * sc, rot)
+                15 -> sunShades(s, x, y, s.f(34f, 48f) * sc, pal)
+                16 -> starFriend(s, x, y, s.f(40f, 56f) * sc, rot)
+                17 -> spaceCat(s, x, y, s.f(40f, 54f) * sc, rot, pal)
+                18 -> squid(s, x, y, s.f(38f, 54f) * sc, rot, pal)
+                19 -> spaceDog(s, x, y, s.f(40f, 54f) * sc, rot, pal)
+                20 -> planetFace(s, x, y, s.f(42f, 66f) * sc, pal)
                 0, 1 -> bandedPlanet(s, x, y, s.f(42f, 80f) * sc, pal)
                 2 -> craterPlanet(s, x, y, s.f(40f, 70f) * sc, pal)
                 3 -> ringPlanet(s, x, y, s.f(30f, 48f) * sc, pal)
@@ -962,6 +971,189 @@ object SpaceDoodles : Style("space_doodles", "Space Doodles", Category.DOODLE) {
         s.canvas.drawCircle(x, y, r, s.stroke(INK, 3f))
         s.canvas.drawArc(rect, 0f, 180f, false, ring)
         s.canvas.restore()
+    }
+
+    // ---- characters ----
+
+    private val DARK = Color.rgb(28, 22, 40)
+
+    /** Runs [body] with the origin at (x, y), rotated, so characters can be drawn around (0, 0). */
+    private inline fun at(s: Scene, x: Float, y: Float, rot: Float, body: () -> Unit) {
+        s.canvas.save(); s.canvas.translate(x, y); s.canvas.rotate(rot); body(); s.canvas.restore()
+    }
+
+    private fun eyes(s: Scene, gap: Float, y: Float, r: Float, color: Int = DARK) {
+        for (side in intArrayOf(-1, 1)) {
+            s.canvas.drawCircle(side * gap, y, r, s.fill(color))
+            s.canvas.drawCircle(side * gap - r * 0.3f, y - r * 0.3f, r * 0.36f, s.fill(Color.WHITE))
+        }
+    }
+
+    private fun smile(s: Scene, y: Float, w: Float, color: Int = DARK) {
+        s.canvas.drawArc(RectF(-w, y - w * 0.55f, w, y + w * 0.55f), 15f, 150f, false, s.stroke(color, 3f))
+    }
+
+    private fun alien(s: Scene, x: Float, y: Float, r: Float, rot: Float, pal: IntArray) {
+        val skin = pal[s.i(0, pal.size)]
+        at(s, x, y, rot) {
+            for (side in intArrayOf(-1, 1)) {
+                s.canvas.drawLine(side * r * 0.3f, -r * 0.7f, side * r * 0.55f, -r * 1.2f, s.stroke(INK, 3f))
+                s.canvas.drawCircle(side * r * 0.55f, -r * 1.25f, r * 0.12f, s.fill(pal[s.i(0, pal.size)]))
+                s.canvas.drawCircle(side * r * 0.55f, -r * 1.25f, r * 0.12f, s.stroke(INK, 3f))
+            }
+            s.canvas.drawOval(RectF(-r * 0.4f, r * 0.35f, r * 0.4f, r * 1.1f), s.fill(darken(skin, 0.15f)))
+            s.canvas.drawOval(RectF(-r * 0.4f, r * 0.35f, r * 0.4f, r * 1.1f), s.stroke(INK, 3f))
+            s.canvas.drawOval(RectF(-r * 0.8f, -r * 0.8f, r * 0.8f, r * 0.55f), s.fill(skin))
+            s.canvas.drawOval(RectF(-r * 0.8f, -r * 0.8f, r * 0.8f, r * 0.55f), s.stroke(INK, 3f))
+            for (side in intArrayOf(-1, 1)) {
+                val eye = Path().apply { addOval(RectF(side * r * 0.36f - r * 0.2f, -r * 0.4f, side * r * 0.36f + r * 0.2f, r * 0.12f), Path.Direction.CW) }
+                s.canvas.save(); s.canvas.rotate(side * 18f, side * r * 0.36f, -r * 0.14f)
+                s.canvas.drawPath(eye, s.fill(DARK)); s.canvas.restore()
+                s.canvas.drawCircle(side * r * 0.3f, -r * 0.3f, r * 0.06f, s.fill(Color.WHITE))
+            }
+            smile(s, r * 0.28f, r * 0.14f)
+        }
+    }
+
+    private fun robot(s: Scene, x: Float, y: Float, r: Float, rot: Float, pal: IntArray) {
+        val shell = pal[s.i(0, pal.size)]
+        val led = pal[s.i(0, pal.size)]
+        at(s, x, y, rot) {
+            s.canvas.drawLine(0f, -r * 0.75f, 0f, -r * 1.1f, s.stroke(INK, 3f))
+            s.canvas.drawCircle(0f, -r * 1.16f, r * 0.1f, s.fill(Color.rgb(255, 90, 100)))
+            s.canvas.drawRoundRect(RectF(-r * 0.85f, r * 0.55f, r * 0.85f, r * 1.2f), r * 0.15f, r * 0.15f, s.fill(darken(shell, 0.2f)))
+            s.canvas.drawRoundRect(RectF(-r * 0.85f, r * 0.55f, r * 0.85f, r * 1.2f), r * 0.15f, r * 0.15f, s.stroke(INK, 3f))
+            for (side in intArrayOf(-1, 1)) {
+                s.canvas.drawCircle(side * r * 0.9f, -r * 0.1f, r * 0.14f, s.fill(darken(shell, 0.3f)))
+                s.canvas.drawCircle(side * r * 0.9f, -r * 0.1f, r * 0.14f, s.stroke(INK, 3f))
+            }
+            s.canvas.drawRoundRect(RectF(-r * 0.8f, -r * 0.75f, r * 0.8f, r * 0.6f), r * 0.22f, r * 0.22f, s.fill(shell))
+            s.canvas.drawRoundRect(RectF(-r * 0.8f, -r * 0.75f, r * 0.8f, r * 0.6f), r * 0.22f, r * 0.22f, s.stroke(INK, 3f))
+            for (side in intArrayOf(-1, 1)) {
+                s.canvas.drawRoundRect(RectF(side * r * 0.36f - r * 0.2f, -r * 0.4f, side * r * 0.36f + r * 0.2f, r * 0.02f), r * 0.06f, r * 0.06f, s.fill(DARK))
+                s.canvas.drawRect(side * r * 0.36f - r * 0.12f, -r * 0.3f, side * r * 0.36f + r * 0.12f, -r * 0.1f, s.fill(led))
+            }
+            for (k in 0 until 4) s.canvas.drawLine(-r * 0.3f + k * r * 0.2f, r * 0.18f, -r * 0.3f + k * r * 0.2f, r * 0.4f, s.stroke(DARK, 3f))
+        }
+    }
+
+    private fun moonFace(s: Scene, x: Float, y: Float, r: Float, rot: Float) {
+        at(s, x, y, rot) {
+            val moon = Path().apply { addCircle(0f, 0f, r, Path.Direction.CW) }
+            val bite = Path().apply { addCircle(r * 0.55f, -r * 0.2f, r * 0.85f, Path.Direction.CW) }
+            moon.op(bite, Path.Op.DIFFERENCE)
+            s.canvas.drawPath(moon, s.fill(Color.rgb(255, 232, 150)))
+            s.canvas.drawPath(moon, s.stroke(INK, 3f))
+            s.canvas.drawArc(RectF(-r * 0.62f, -r * 0.1f, -r * 0.22f, r * 0.2f), 10f, 160f, false, s.stroke(DARK, 3f))
+            s.canvas.drawCircle(-r * 0.62f, r * 0.34f, r * 0.12f, s.fill(Color.rgb(255, 150, 160), 200))
+            smile(s, r * 0.36f, r * 0.12f)
+            val z = s.textPaint(r * 0.5f, INK, Typeface.DEFAULT_BOLD)
+            s.canvas.drawText("z", r * 0.95f, -r * 0.55f, z)
+            s.canvas.drawText("z", r * 1.2f, -r * 0.9f, s.textPaint(r * 0.34f, INK, Typeface.DEFAULT_BOLD))
+        }
+    }
+
+    private fun sunShades(s: Scene, x: Float, y: Float, r: Float, pal: IntArray) {
+        at(s, x, y, s.f(-15f, 15f)) {
+            val ray = Color.rgb(255, 196, 60)
+            for (k in 0 until 12) {
+                val a = k * TAU / 12f
+                val tri = Path().apply {
+                    moveTo(cos(a - 0.14f) * r, sin(a - 0.14f) * r); lineTo(cos(a) * r * 1.42f, sin(a) * r * 1.42f); lineTo(cos(a + 0.14f) * r, sin(a + 0.14f) * r); close()
+                }
+                s.canvas.drawPath(tri, s.fill(ray)); s.canvas.drawPath(tri, s.stroke(INK, 2.4f))
+            }
+            s.canvas.drawCircle(0f, 0f, r, s.fill(Color.rgb(255, 214, 90)))
+            s.canvas.drawCircle(0f, 0f, r, s.stroke(INK, 3f))
+            s.canvas.drawRoundRect(RectF(-r * 0.7f, -r * 0.3f, -r * 0.05f, r * 0.12f), r * 0.1f, r * 0.1f, s.fill(DARK))
+            s.canvas.drawRoundRect(RectF(r * 0.05f, -r * 0.3f, r * 0.7f, r * 0.12f), r * 0.1f, r * 0.1f, s.fill(DARK))
+            s.canvas.drawLine(-r * 0.05f, -r * 0.2f, r * 0.05f, -r * 0.2f, s.stroke(DARK, 3f))
+            smile(s, r * 0.28f, r * 0.3f)
+        }
+    }
+
+    private fun starFriend(s: Scene, x: Float, y: Float, r: Float, rot: Float) {
+        at(s, x, y, rot) {
+            val star = Path()
+            for (k in 0 until 10) {
+                val rr = if (k % 2 == 0) r else r * 0.5f
+                val a = -PI.toFloat() / 2f + k * PI.toFloat() / 5f
+                if (k == 0) star.moveTo(cos(a) * rr, sin(a) * rr) else star.lineTo(cos(a) * rr, sin(a) * rr)
+            }
+            star.close()
+            s.canvas.drawPath(star, s.fill(Color.rgb(255, 224, 90)))
+            s.canvas.drawPath(star, s.stroke(INK, 3.2f))
+            eyes(s, r * 0.2f, -r * 0.05f, r * 0.09f)
+            smile(s, r * 0.1f, r * 0.14f)
+            s.canvas.drawCircle(-r * 0.38f, r * 0.12f, r * 0.07f, s.fill(Color.rgb(255, 140, 150), 200))
+            s.canvas.drawCircle(r * 0.38f, r * 0.12f, r * 0.07f, s.fill(Color.rgb(255, 140, 150), 200))
+        }
+    }
+
+    private fun helmet(s: Scene, r: Float) {
+        s.canvas.drawCircle(0f, 0f, r * 1.12f, s.fill(Color.WHITE, 40))
+        s.canvas.drawCircle(0f, 0f, r * 1.12f, s.stroke(INK, 3.2f))
+        s.canvas.drawArc(RectF(-r * 0.9f, -r * 0.9f, r * 0.9f, r * 0.9f), 200f, 50f, false, s.stroke(Color.WHITE, 3f, 200))
+    }
+
+    private fun spaceCat(s: Scene, x: Float, y: Float, r: Float, rot: Float, pal: IntArray) {
+        val fur = pal[s.i(0, pal.size)]
+        at(s, x, y, rot) {
+            for (side in intArrayOf(-1, 1)) {
+                val ear = Path().apply { moveTo(side * r * 0.25f, -r * 0.55f); lineTo(side * r * 0.62f, -r * 0.98f); lineTo(side * r * 0.72f, -r * 0.3f); close() }
+                s.canvas.drawPath(ear, s.fill(fur)); s.canvas.drawPath(ear, s.stroke(INK, 3f))
+            }
+            s.canvas.drawOval(RectF(-r * 0.8f, -r * 0.7f, r * 0.8f, r * 0.62f), s.fill(fur))
+            s.canvas.drawOval(RectF(-r * 0.8f, -r * 0.7f, r * 0.8f, r * 0.62f), s.stroke(INK, 3f))
+            eyes(s, r * 0.32f, -r * 0.12f, r * 0.11f)
+            s.canvas.drawCircle(0f, r * 0.08f, r * 0.06f, s.fill(Color.rgb(255, 140, 160)))
+            for (side in intArrayOf(-1, 1)) for (k in -1..1) s.canvas.drawLine(side * r * 0.5f, r * 0.12f + k * r * 0.08f, side * r * 1.0f, r * 0.05f + k * r * 0.2f, s.stroke(INK, 2f, 200))
+            helmet(s, r)
+        }
+    }
+
+    private fun spaceDog(s: Scene, x: Float, y: Float, r: Float, rot: Float, pal: IntArray) {
+        val fur = pal[s.i(0, pal.size)]
+        at(s, x, y, rot) {
+            for (side in intArrayOf(-1, 1)) {
+                s.canvas.drawOval(RectF(side * r * 0.62f - r * 0.2f, -r * 0.6f, side * r * 0.62f + r * 0.2f, r * 0.3f), s.fill(darken(fur, 0.3f)))
+                s.canvas.drawOval(RectF(side * r * 0.62f - r * 0.2f, -r * 0.6f, side * r * 0.62f + r * 0.2f, r * 0.3f), s.stroke(INK, 3f))
+            }
+            s.canvas.drawOval(RectF(-r * 0.65f, -r * 0.65f, r * 0.65f, r * 0.62f), s.fill(fur))
+            s.canvas.drawOval(RectF(-r * 0.65f, -r * 0.65f, r * 0.65f, r * 0.62f), s.stroke(INK, 3f))
+            s.canvas.drawOval(RectF(-r * 0.28f, r * 0.0f, r * 0.28f, r * 0.4f), s.fill(Color.rgb(255, 240, 225)))
+            eyes(s, r * 0.28f, -r * 0.2f, r * 0.1f)
+            s.canvas.drawOval(RectF(-r * 0.09f, r * 0.02f, r * 0.09f, r * 0.14f), s.fill(DARK))
+            s.canvas.drawOval(RectF(-r * 0.07f, r * 0.26f, r * 0.07f, r * 0.5f), s.fill(Color.rgb(255, 120, 150)))
+            helmet(s, r * 1.05f)
+        }
+    }
+
+    private fun squid(s: Scene, x: Float, y: Float, r: Float, rot: Float, pal: IntArray) {
+        val body = pal[s.i(0, pal.size)]
+        at(s, x, y, rot) {
+            for (k in -2..2) {
+                val p = Path().apply {
+                    moveTo(k * r * 0.3f, r * 0.2f)
+                    cubicTo(k * r * 0.3f + r * 0.2f, r * 0.7f, k * r * 0.3f - r * 0.25f, r * 0.9f, k * r * 0.3f, r * 1.4f)
+                }
+                s.canvas.drawPath(p, s.stroke(INK, r * 0.22f + 6f)); s.canvas.drawPath(p, s.stroke(body, r * 0.22f))
+            }
+            val head = Path().apply { moveTo(-r * 0.8f, r * 0.2f); cubicTo(-r * 0.8f, -r * 1.2f, r * 0.8f, -r * 1.2f, r * 0.8f, r * 0.2f); close() }
+            s.canvas.drawPath(head, s.fill(body)); s.canvas.drawPath(head, s.stroke(INK, 3f))
+            eyes(s, r * 0.3f, -r * 0.12f, r * 0.13f)
+            smile(s, r * 0.05f, r * 0.14f)
+            repeat(3) { s.canvas.drawCircle(s.f(-r * 0.5f, r * 0.5f), s.f(-r * 0.7f, -r * 0.3f), r * 0.06f, s.fill(Color.WHITE, 150)) }
+        }
+    }
+
+    private fun planetFace(s: Scene, x: Float, y: Float, r: Float, pal: IntArray) {
+        val base = pal[s.i(0, pal.size)]
+        s.canvas.drawCircle(x, y, r, s.fill(base))
+        s.canvas.drawCircle(x, y, r, s.stroke(INK, 3f))
+        s.canvas.drawArc(RectF(x - r * 1.6f, y - r * 0.4f, x + r * 1.6f, y + r * 0.4f), 0f, 180f, false, s.stroke(INK, 3f))
+        at(s, x, y, 0f) { eyes(s, r * 0.3f, -r * 0.1f, r * 0.11f); smile(s, r * 0.12f, r * 0.22f) }
+        s.canvas.drawArc(RectF(x - r * 1.6f, y - r * 0.4f, x + r * 1.6f, y + r * 0.4f), 180f, 180f, false, s.stroke(INK, 3f))
     }
 
     private fun satellite(s: Scene, x: Float, y: Float, size: Float, rot: Float) {

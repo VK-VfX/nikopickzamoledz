@@ -355,6 +355,8 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                             onWords = { words = it.take(80).replace('|', ' ').replace('\n', ' ') },
                             onWordsDone = { spec = spec.copy(text = words.trim()) },
                             onSafe = { spec = spec.copy(safe = it) },
+                            onDetailPreset = { detail = it; spec = spec.copy(density = it) },
+                            onBlackPreset = { blackLevel = it; spec = spec.copy(black = it) },
                             onWhite = { spec = spec.copy(white = it) },
                             onAlign = { spec = spec.copy(align = it) },
                             onVpos = { spec = spec.copy(vpos = it) },
@@ -517,6 +519,8 @@ private fun CustomizePanel(
     onWords: (String) -> Unit,
     onWordsDone: () -> Unit,
     onSafe: (Boolean) -> Unit,
+    onDetailPreset: (Float) -> Unit,
+    onBlackPreset: (Float) -> Unit,
     onWhite: (Boolean) -> Unit,
     onAlign: (Int) -> Unit,
     onVpos: (Int) -> Unit,
@@ -572,6 +576,7 @@ private fun CustomizePanel(
                 }
             }
             Slider(value = detail, onValueChange = onDetail, onValueChangeFinished = onDetailDone, valueRange = 0.4f..1.8f)
+            PresetRow(listOf("Minimal" to 0.6f, "Normal" to 1f, "Rich" to 1.4f, "Dense" to 1.8f), detail, onDetailPreset)
         }
         if (spec.style.usesText) {
             SectionLabel("Your words")
@@ -630,6 +635,7 @@ private fun CustomizePanel(
             }
         }
         Slider(value = black, onValueChange = onBlack, onValueChangeFinished = onBlackDone, valueRange = 0f..1f)
+        PresetRow(listOf("Off" to 0f, "Soft" to 0.25f, "Deep" to 0.5f, "Pure" to 0.85f), black, onBlackPreset)
         SectionLabel("Save resolution")
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             Resolution.entries.forEachIndexed { index, res ->
@@ -836,7 +842,7 @@ private fun layoutDots(layout: DoodleLayout): List<Pair<Float, Float>> = when (l
 
 @Composable
 private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
+    MonoLabel(text, modifier = modifier)
 }
 
 @Composable

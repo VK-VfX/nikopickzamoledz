@@ -3,6 +3,11 @@ package com.nikopick.zamoled.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Button
@@ -151,7 +156,9 @@ class HomeState(
     val exploreGrid: LazyGridState,
     val categoryGrid: LazyGridState,
     val favoriteGrid: LazyGridState,
+    val ota: OtaState,
 ) {
+    var showSettings by mutableStateOf(false)
     var tab by mutableStateOf(HomeTab.EXPLORE)
     var filter by mutableStateOf(FILTER_ALL)
     var subcategory by mutableStateOf<String?>(null)
@@ -170,16 +177,18 @@ class HomeState(
         batch = System.currentTimeMillis()
     }
     var batch by mutableLongStateOf(System.currentTimeMillis())
-    var update by mutableStateOf<UpdateInfo?>(null)
 }
 
 @Composable
-fun rememberHomeState(): HomeState {
+fun rememberHomeState(prefs: Prefs): HomeState {
     val explore = rememberLazyGridState()
     val categories = rememberLazyGridState()
     val favorites = rememberLazyGridState()
-    val state = remember { HomeState(explore, categories, favorites) }
-    LaunchedEffect(Unit) { state.update = Updates.check() }
+    val context = LocalContext.current.applicationContext
+    val scope = rememberCoroutineScope()
+    val ota = remember { OtaState(context, scope, prefs) }
+    val state = remember { HomeState(explore, categories, favorites, ota) }
+    LaunchedEffect(Unit) { if (prefs.autoUpdate) ota.check() }
     return state
 }
 
@@ -237,71 +246,72 @@ private fun topInset() = WindowInsets.statusBars.asPaddingValues().calculateTopP
 @Composable
 fun HomeScreen(state: HomeState, favorites: FavoritesStore, prefs: Prefs, onOpen: (WallpaperSpec) -> Unit) {
     val fabExpanded by remember { derivedStateOf { state.exploreGrid.firstVisibleItemIndex < 3 } }
-    Scaffold(
-        containerColor = Color.Black,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            Column {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.07f)))
-            NavigationBar(containerColor = Color.Black, tonalElevation = 0.dp) {
-                HomeTab.entries.forEach { t ->
-                    val selected = state.tab == t
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { state.tab = t },
-                        icon = {
-                            val icon = if (selected) t.selectedIcon else t.icon
-                            val count = favorites.keys.size
-                            if (t == HomeTab.FAVORITES && count > 0) {
-                                BadgedBox(badge = { Badge { Text("$count") } }) { Icon(icon, contentDescription = null) }
-                            } else {
-                                Icon(icon, contentDescription = null)
-                            }
-                        },
-                        label = { Text(t.label) },
+    val context = LocalContext.current
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Black,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = {
+                // The dock floats over the feed rather than pushing it up.
+                Box(
+                    Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 4.dp, bottom = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FloatingDock(state.tab, onTab = { state.tab = it }, favoriteCount = favorites.keys.size)
+                }
+            },
+            floatingActionButton = {
+                AnimatedVisibility(
+                    visible = state.tab == HomeTab.EXPLORE,
+                    enter = scaleIn(Motion.bouncy()) + fadeIn(),
+                    exit = scaleOut() + fadeOut(),
+                ) {
+                    ExtendedFloatingActionButton(
+                        onClick = { onOpen(WallpaperSpec(Styles.all.random().id, Random.nextLong())) },
+                        expanded = fabExpanded,
+                        icon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
+                        text = { Text("Surprise me") },
+                        shape = LeafSm,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     )
                 }
-            }
-            }
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = state.tab == HomeTab.EXPLORE,
-                enter = scaleIn(Motion.bouncy()) + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-            ) {
-                ExtendedFloatingActionButton(
-                    onClick = { onOpen(WallpaperSpec(Styles.all.random().id, Random.nextLong())) },
-                    expanded = fabExpanded,
-                    icon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
-                    text = { Text("Surprise me") },
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
-            }
-        },
-    ) { padding ->
-        AnimatedContent(
-            targetState = state.tab,
-            transitionSpec = {
-                // Material "fade through": outgoing fades fast, incoming fades and grows in.
-                (fadeIn(tween(240, delayMillis = 90)) + scaleIn(tween(240, delayMillis = 90), initialScale = 0.94f))
-                    .togetherWith(fadeOut(tween(90)))
             },
-            label = "tabs",
-            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
-        ) { tab ->
-            when (tab) {
-                HomeTab.EXPLORE -> ExploreTab(state, favorites, prefs, onOpen)
-                HomeTab.CATEGORIES -> CategoriesTab(state) { category ->
-                    state.filter = category.name
-                    state.subcategory = null
-                    state.styleId = null
-                    state.query = ""
-                    state.searching = false
-                    state.tab = HomeTab.EXPLORE
+        ) { _ ->
+            AnimatedContent(
+                targetState = state.tab,
+                transitionSpec = {
+                    // "Fade through": the old tab leaves quickly, the new one eases in.
+                    (fadeIn(tween(220, delayMillis = 80)) + scaleIn(tween(220, delayMillis = 80), initialScale = 0.96f))
+                        .togetherWith(fadeOut(tween(80)))
+                },
+                label = "tabs",
+            ) { tab ->
+                when (tab) {
+                    HomeTab.EXPLORE -> ExploreTab(state, favorites, prefs, onOpen)
+                    HomeTab.CATEGORIES -> CategoriesTab(state) { category ->
+                        state.filter = category.name
+                        state.subcategory = null
+                        state.styleId = null
+                        state.query = ""
+                        state.searching = false
+                        state.tab = HomeTab.EXPLORE
+                    }
+                    HomeTab.FAVORITES -> FavoritesTab(state, favorites, onOpen)
                 }
-                HomeTab.FAVORITES -> FavoritesTab(state, favorites, onOpen)
+            }
+        }
+        AnimatedVisibility(
+            visible = state.showSettings,
+            enter = fadeIn(tween(200)) + slideInVertically(tween(260)) { it / 14 },
+            exit = fadeOut(tween(160)),
+        ) {
+            SettingsScreen(state.ota, prefs, onBack = { state.showSettings = false }, onDaily = { state.showAuto = true })
+        }
+        if (state.showAuto) {
+            AutoWallpaperSheet(prefs, favoriteCount = favorites.keys.size, onDismiss = { state.showAuto = false }) { enabled, source, target ->
+                prefs.setAuto(enabled, source, target)
+                AutoWallpaper.schedule(context, enabled)
             }
         }
     }
@@ -337,15 +347,15 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, prefs: Prefs
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
             Column {
                 HeroHeader(
-                    autoOn = prefs.autoEnabled,
+                    updateReady = state.ota.showBanner,
                     onShuffle = { state.batch = System.currentTimeMillis() },
                     onSearch = {
                         state.searching = !state.searching
                         if (!state.searching) state.query = ""
                     },
-                    onAuto = { state.showAuto = true },
+                    onSettings = { state.showSettings = true },
                 )
-                UpdateBanner(state.update, onDismiss = { state.update = null })
+                UpdateBanner(state.ota)
                 AnimatedVisibility(
                     visible = state.searching,
                     enter = expandVertically(Motion.spatial()) + fadeIn(),
@@ -423,12 +433,6 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, prefs: Prefs
                 state.batch = System.currentTimeMillis()
                 scope.launch { grid.animateScrollToItem(0) }
             }
-        }
-    }
-    if (state.showAuto) {
-        AutoWallpaperSheet(prefs, favoriteCount = favorites.keys.size, onDismiss = { state.showAuto = false }) { enabled, source, target ->
-            prefs.setAuto(enabled, source, target)
-            AutoWallpaper.schedule(context, enabled)
         }
     }
 }
@@ -560,18 +564,14 @@ private fun AutoWallpaperSheet(
 private fun FeedEnd(count: Int, onShuffle: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 8.dp),
     ) {
-        Text(
-            "That's $count. Want a different set?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onShuffle) {
+        MonoLabel("That is $count")
+        OutlinedButton(onClick = onShuffle, shape = LeafSm) {
             Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Shuffle")
+            Text("Shuffle for a new set")
         }
     }
 }
@@ -590,101 +590,82 @@ private fun StatPill(text: String) {
 }
 
 @Composable
-private fun HeroHeader(autoOn: Boolean, onShuffle: () -> Unit, onSearch: () -> Unit, onAuto: () -> Unit) {
+private fun HeroHeader(updateReady: Boolean, onShuffle: () -> Unit, onSearch: () -> Unit, onSettings: () -> Unit) {
     val scope = rememberCoroutineScope()
     val spin = remember { Animatable(0f) }
-    Column(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    greeting(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                GradientText("Zamoled", style = MaterialTheme.typography.displaySmall)
+                MonoLabel(greeting())
+                Wordmark()
             }
             IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, contentDescription = "Search") }
-            IconButton(onClick = onAuto) {
-                Icon(
-                    Icons.Rounded.Schedule,
-                    contentDescription = "Daily wallpaper",
-                    tint = if (autoOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
+            IconButton(onClick = {
+                onShuffle()
+                scope.launch { spin.animateTo(spin.value + 360f, Motion.bouncy()) }
+            }) {
+                Icon(Icons.Rounded.Refresh, contentDescription = "New batch", modifier = Modifier.graphicsLayer { rotationZ = spin.value })
             }
-            FilledTonalIconButton(
-                onClick = {
-                    onShuffle()
-                    scope.launch { spin.animateTo(spin.value + 360f, Motion.bouncy()) }
-                },
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.Rounded.Refresh,
-                    contentDescription = "New batch",
-                    modifier = Modifier.graphicsLayer { rotationZ = spin.value },
-                )
+            IconButton(onClick = onSettings) {
+                BadgedBox(badge = { if (updateReady) Badge(containerColor = MaterialTheme.colorScheme.primary) }) {
+                    Icon(Icons.Rounded.Settings, contentDescription = "Settings and updates")
+                }
             }
         }
-        Text(
-            "Pitch-black wallpapers, drawn on your phone",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
-            StatPill("${Styles.all.size} wallpapers")
-            StatPill("${Styles.categories.size} worlds")
-            StatPill(if (autoOn) "Daily on" else "4K")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 10.dp)) {
+            MonoLabel("${Styles.all.size} wallpapers")
+            MonoLabel("/", color = MaterialTheme.colorScheme.primary)
+            MonoLabel("${Styles.categories.size} worlds")
+            MonoLabel("/", color = MaterialTheme.colorScheme.primary)
+            MonoLabel("pitch black")
         }
+        Box(Modifier.padding(top = 14.dp).fillMaxWidth().height(1.dp).background(Hairline))
     }
 }
 
 @Composable
-private fun UpdateBanner(update: UpdateInfo?, onDismiss: () -> Unit) {
-    val context = LocalContext.current
+private fun UpdateBanner(ota: OtaState) {
     // Keep the last value so the exit animation still has text to show.
     var shown by remember { mutableStateOf<UpdateInfo?>(null) }
-    if (update != null) shown = update
+    if (ota.info != null) shown = ota.info
     AnimatedVisibility(
-        visible = update != null,
+        visible = ota.showBanner,
         enter = expandVertically(Motion.spatial()) + fadeIn(),
         exit = shrinkVertically(Motion.spatial()) + fadeOut(),
     ) {
         val info = shown ?: return@AnimatedVisibility
-        Card(
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-            ),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(14.dp)),
-                ) {
-                    Icon(Icons.Rounded.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiary)
+        LeafCard(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            Column(Modifier.padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                    MonoLabel("Update  ${Updates.installedVersion} → ${info.version}", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp).weight(1f))
+                    IconButton(onClick = { ota.dismissed = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Dismiss", modifier = Modifier.size(18.dp))
+                    }
                 }
-                Column(Modifier.weight(1f)) {
-                    Text("Version ${info.version} is ready", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "You have ${Updates.installedVersion}. Download, then open the file to update.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                Text("A new version is ready", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    when (ota.phase) {
+                        OtaPhase.DOWNLOADING -> "Downloading… ${(ota.progress * 100).toInt()}%"
+                        OtaPhase.READY -> "Downloaded. Install it over this version; your favorites stay."
+                        OtaPhase.ERROR -> ota.message ?: "Something went wrong."
+                        else -> "Updates download inside the app and install over this one."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 10.dp),
+                )
+                if (ota.phase == OtaPhase.DOWNLOADING) {
+                    LinearProgressIndicator(progress = { ota.progress }, modifier = Modifier.fillMaxWidth().padding(end = 10.dp))
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Button(onClick = {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(info.apkUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                            )
-                        }
-                    }) { Text("Download") }
-                    TextButton(onClick = onDismiss) { Text("Later") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when (ota.phase) {
+                        OtaPhase.READY -> Button(onClick = { ota.install() }) { Text("Install") }
+                        OtaPhase.DOWNLOADING -> Button(onClick = {}, enabled = false) { Text("Downloading") }
+                        OtaPhase.ERROR -> Button(onClick = { ota.download() }) { Text("Try again") }
+                        else -> Button(onClick = { ota.download() }) { Text("Download" + if (info.size > 0) "  ·  %.1f MB".format(info.size / 1_048_576f) else "") }
+                    }
+                    TextButton(onClick = { ota.dismissed = true }) { Text("Not now") }
                 }
             }
         }
@@ -693,7 +674,11 @@ private fun UpdateBanner(update: UpdateInfo?, onDismiss: () -> Unit) {
 
 @Composable
 private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = MaterialTheme.typography.titleLarge, modifier = modifier.padding(start = 4.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier.padding(start = 2.dp)) {
+        Box(Modifier.size(7.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+        Text(text, style = MaterialTheme.typography.titleLarge)
+        Box(Modifier.weight(1f).height(1.dp).background(Hairline))
+    }
 }
 
 @Composable
@@ -742,14 +727,14 @@ private fun FeaturedCarousel(specs: List<WallpaperSpec>, onOpen: (WallpaperSpec)
 private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val bitmap by rememberThumbnail(spec, ThumbCache.LARGE)
-    val shape = RoundedCornerShape(32.dp)
+    val shape = Leaf
     val palette = spec.palette
     Card(
         onClick = onClick,
         shape = shape,
         interactionSource = interaction,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+        border = hairline(0.12f),
         modifier = modifier.fillMaxWidth().height(420.dp).pressScale(interaction, 0.96f),
     ) {
         Box(Modifier.fillMaxSize().sharedWallpaper(spec.key, shape)) {
@@ -771,17 +756,8 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.align(Alignment.BottomStart).padding(20.dp),
             ) {
-                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Icon(spec.style.category.icon, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text(spec.style.category.label, style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-                Text(spec.style.name, style = MaterialTheme.typography.headlineSmall, color = Color.White)
+                MonoLabel(spec.style.category.label, color = MaterialTheme.colorScheme.primary)
+                Text(spec.style.name, style = MaterialTheme.typography.headlineLarge, color = Color.White)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     palette.colors.forEach { c -> Box(Modifier.size(12.dp).background(Color(c), CircleShape)) }
                 }
@@ -793,68 +769,18 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
 /** Sub-categories inside the chosen category: a second, narrower pass over the same feed. */
 @Composable
 private fun SubFilterRow(category: Category, subcategories: List<String>, selected: String?, onSelect: (String?) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-        SectionTitle("In ${category.label}")
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-        ) {
-            item(key = "sub_all") {
-                FilterChip(
-                    selected = selected == null,
-                    onClick = { onSelect(null) },
-                    label = { Text("Everything") },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
-                )
-            }
-            items(subcategories, key = { it }) { name ->
-                FilterChip(
-                    selected = selected == name,
-                    onClick = { onSelect(name) },
-                    label = { Text(name) },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
-                )
-            }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
+        MonoLabel("In ${category.label}", modifier = Modifier.padding(start = 2.dp))
+        NoirPills(listOf<Pair<String?, String>>(null to "Everything") + subcategories.map { it to it }, selected, onSelect)
     }
 }
 
 @Composable
 private fun FilterRow(selected: String, onSelect: (String) -> Unit) {
-    val filters = listOf(Triple(FILTER_ALL, "All", Icons.Rounded.GridView)) +
-        Styles.categories.map { Triple(it.name, it.label, it.icon) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-        SectionTitle("Browse")
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-        ) {
-            items(filters, key = { it.first }) { (id, label, icon) ->
-                val isSelected = selected == id
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onSelect(id) },
-                    label = { Text(label) },
-                    leadingIcon = {
-                        Icon(icon, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize))
-                    },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
-                )
-            }
-        }
+    val items = listOf(FILTER_ALL to "All") + Styles.categories.map { it.name to it.label }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
+        SectionHead("01", "Browse")
+        NoirTabs(items, selected, onSelect)
     }
 }
 
@@ -868,13 +794,13 @@ fun WallpaperCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val bitmap by rememberThumbnail(spec)
-    val shape = RoundedCornerShape(22.dp)
+    val shape = LeafSm
     Card(
         onClick = onClick,
         shape = shape,
         interactionSource = interaction,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        border = hairline(0.1f),
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(Screen.aspect)
@@ -896,13 +822,15 @@ fun WallpaperCard(
                     .height(44.dp)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)))),
             )
-            Text(
+            MonoLabel(
                 spec.style.name,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.85f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
+                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, end = 12.dp, bottom = 11.dp),
+            )
+            MonoLabel(
+                "%02d".format(index + 1),
+                color = Color.White.copy(alpha = 0.42f),
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 10.dp),
             )
             androidx.compose.animation.AnimatedVisibility(
                 visible = favorite,
@@ -937,12 +865,8 @@ private fun CategoriesTab(state: HomeState, onPick: (Category) -> Unit) {
     ) {
         item(key = "title", span = { GridItemSpan(maxLineSpan) }) {
             Column(Modifier.padding(start = 4.dp, bottom = 8.dp)) {
-                Text("Categories", style = MaterialTheme.typography.headlineLarge)
-                Text(
-                    "${Styles.categories.size} worlds, ${Styles.all.size} wallpapers. Tap one, then narrow it down.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                MonoLabel("${Styles.categories.size} worlds / ${Styles.all.size} wallpapers")
+                Text("Categories", style = MaterialTheme.typography.displaySmall)
             }
         }
         itemsIndexed(Styles.categories, key = { _, c -> c.name }) { i, category ->
@@ -957,7 +881,7 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
     val pressed by interaction.collectIsPressedAsState()
     val styles = Styles.of(category)
     // A fixed seed that was checked on every world's first style, so no card comes up nearly empty.
-    val sample = remember(category) { WallpaperSpec(if (category == Category.GEOMETRIC) "floating_isle" else styles[0].id, COVER_SEED) }
+    val sample = remember(category) { WallpaperSpec(styles[0].id, COVER_SEED) }
     val bitmap by rememberThumbnail(sample)
     val containers = listOf(
         MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer,
@@ -967,10 +891,10 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
     val (container, onContainer) = containers[index % containers.size]
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(28.dp),
+        shape = Leaf,
         interactionSource = interaction,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)),
+        border = hairline(0.1f),
         modifier = Modifier
             .fillMaxWidth()
             .height(210.dp)
@@ -996,14 +920,13 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.1f), Color.Black.copy(alpha = 0.85f)))),
             )
             Column(Modifier.fillMaxHeight().padding(16.dp)) {
-                ShapeIcon(category, active = pressed, size = 52.dp, container = container, content = onContainer)
+                Row(verticalAlignment = Alignment.Top) {
+                    Text("%02d".format(index + 1), style = MaterialTheme.typography.displaySmall, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.weight(1f))
+                    ShapeIcon(category, active = pressed, size = 40.dp, container = container, content = onContainer)
+                }
                 Spacer(Modifier.weight(1f))
-                Text(category.label, style = MaterialTheme.typography.titleLarge, color = Color.White)
-                Text(
-                    "${styles.size} wallpapers",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.55f),
-                ) 
+                Text(category.label, style = MaterialTheme.typography.headlineSmall, color = Color.White)
+                MonoLabel("${styles.size} wallpapers", color = Color.White.copy(alpha = 0.55f))
                 Text(
                     Styles.subcategories(category).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
@@ -1035,12 +958,8 @@ private fun FavoritesTab(state: HomeState, favorites: FavoritesStore, onOpen: (W
     ) {
         item(key = "title", span = { GridItemSpan(maxLineSpan) }) {
             Column(Modifier.padding(start = 4.dp, bottom = 8.dp)) {
-                Text("Favorites", style = MaterialTheme.typography.headlineLarge)
-                Text(
-                    "${specs.size} saved ${if (specs.size == 1) "wallpaper" else "wallpapers"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                MonoLabel("${specs.size} saved")
+                Text("Favorites", style = MaterialTheme.typography.displaySmall)
             }
         }
         itemsIndexed(specs, key = { _, s -> s.key }) { i, spec ->

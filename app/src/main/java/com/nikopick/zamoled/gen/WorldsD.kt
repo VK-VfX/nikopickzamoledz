@@ -307,99 +307,105 @@ object PixelQuest : Style("pixel_quest", "Pixel Quest", Category.PIXEL) {
     private val mushroom = arrayOf("0022200", "0222220", "2232322", "2222222", "0011100", "0011100")
     private val bird = arrayOf("1000001", "0100010", "0011100")
 
+    override val widgetSafe: Boolean get() = true
+
     override fun draw(s: Scene) {
         val pp = PixelPen(s, 12f)
         val cols = (s.w / pp.px).toInt() + 1
         val rows = (s.h / pp.px).toInt() + 1
-        pp.stars(90, rows / 2)
-        // Distant pixel mountains and clouds.
-        for (x in 0 until cols) {
-            val top = (rows * 0.6f - (1f - abs(s.noise.fbm(x * 0.05f, 2f))) * rows * 0.2f).toInt()
-            pp.cell(x, top, darken(s.color(2), 0.3f))
-        }
-        // A nearer, darker range of hills in front of the mountains.
-        for (x in 0 until cols) {
-            val top = (rows * 0.7f - (1f - abs(s.noise.fbm(x * 0.035f, 9f))) * rows * 0.1f).toInt()
-            for (y in top until (rows * 0.8f).toInt()) pp.cell(x, y, darken(s.color(1), 0.78f))
-        }
-        repeat(s.count(4) + 1) {
-            val cgx = s.i(2, cols - 10)
-            val cgy = s.i(4, rows / 3)
-            for (dx in 0 until 8) for (dy in 0 until 3) if (!(dy == 0 && (dx == 0 || dx == 7))) pp.cell(cgx + dx, cgy + dy, Color.WHITE, 150)
-        }
-        // Ground with grass and dirt.
-        val ground = (rows * 0.8f).toInt()
+        // The playfield sits in the clear band between the widgets and the icons, ground at 46%.
+        val ground = (rows * 0.46f).toInt()
         val grass = mix(s.color(2), Color.rgb(80, 200, 100), 0.5f)
-        for (x in 0 until cols) {
-            pp.cell(x, ground, grass)
-            for (y in ground + 1 until rows) if ((x * 3 + y * 5) % 11 == 0) pp.cell(x, y, Color.rgb(150, 100, 60))
-        }
-        // Underground: stones, gold ore and buried bones, a little more of each with Detail.
-        repeat(s.count(44)) {
-            val ux = s.i(0, cols - 2); val uy = s.i(ground + 3, rows - 2)
-            for (dx in 0..1) for (dy in 0..1) pp.cell(ux + dx, uy + dy, if (dx + dy == 0) Color.rgb(170, 165, 160) else Color.rgb(105, 100, 98))
-        }
-        repeat(s.count(16)) {
-            val ux = s.i(0, cols - 2); val uy = s.i(ground + 4, rows - 2)
-            pp.cell(ux, uy, Color.rgb(255, 215, 70)); pp.cell(ux + 1, uy + 1, Color.rgb(255, 215, 70)); pp.cell(ux + 1, uy, Color.rgb(200, 150, 40))
-        }
-        repeat(s.count(9)) {
-            val ux = s.i(0, cols - 4); val uy = s.i(ground + 5, rows - 2)
-            for (dx in 0..3) pp.cell(ux + dx, uy, Color.rgb(235, 232, 220)); pp.cell(ux, uy - 1, Color.rgb(235, 232, 220)); pp.cell(ux + 3, uy + 1, Color.rgb(235, 232, 220))
-        }
-        // Trees, bushes and flowers along the ground; more of them as Detail goes up.
         val leaf = mix(s.color(2), Color.rgb(60, 170, 90), 0.6f)
-        repeat(s.count(7)) {
-            val tx = s.i(3, cols - 3)
-            for (y in 0 until 5) pp.cell(tx, ground - 1 - y, Color.rgb(120, 80, 50))
-            pp.disc(tx, ground - 8, 4, leaf)
-            pp.disc(tx - 1, ground - 9, 2, lighten(leaf, 0.25f))
+        val gold = Color.rgb(255, 215, 70)
+        val inset = 11                                         // the launcher crops the edges a little
+        pp.stars(70, (rows * 0.3f).toInt())
+        // Clouds drifting above the widgets' bottom edge.
+        repeat(s.count(3) + 1) {
+            val cgx = s.i(inset, cols - inset - 8)
+            val cgy = s.i((rows * 0.14f).toInt(), (rows * 0.21f).toInt())
+            for (dx in 0 until 8) for (dy in 0 until 3) if (!(dy == 0 && (dx == 0 || dx == 7))) pp.cell(cgx + dx, cgy + dy, Color.WHITE, 120)
         }
-        repeat(s.count(10)) {
+        // A thin range of hills behind the field: an outline, not a block, so the icons stay readable.
+        for (x in 0 until cols) {
+            val top = ground - 4 - ((s.noise.fbm(x * 0.05f, 2f) + 0.5f).coerceIn(0f, 1f) * 12f).toInt()
+            pp.cell(x, top, darken(s.color(1), 0.35f), 200)
+            if (x % 3 == 0) pp.cell(x, top + 1, darken(s.color(1), 0.6f), 150)
+        }
+        // Trees and bushes standing on the ground.
+        repeat(s.count(5)) {
+            val tx = s.i(3, cols - 3)
+            for (y in 0 until 4) pp.cell(tx, ground - 1 - y, Color.rgb(120, 80, 50))
+            pp.disc(tx, ground - 7, 3, leaf)
+            pp.disc(tx - 1, ground - 8, 2, lighten(leaf, 0.25f))
+        }
+        repeat(s.count(8)) {
             val bx = s.i(2, cols - 2)
             for (dx in -2..2) for (dy in 0..(2 - abs(dx))) pp.cell(bx + dx, ground - 1 - dy, darken(leaf, 0.25f))
         }
-        repeat(s.count(26)) {
+        // Ground: a grass edge, then dirt that fades to black well before the icon rows.
+        for (x in 0 until cols) {
+            pp.cell(x, ground, grass)
+            for (k in 1..16) {
+                val fade = (1f - k / 16f)
+                if (((x * 3 + k * 5) % 7 == 0 || k == 1) && s.chance(fade + 0.1f)) pp.cell(x, ground + k, Color.rgb(150, 100, 60), (150 * fade).toInt().coerceAtLeast(30))
+            }
+        }
+        repeat(s.count(10)) {
+            val ux = s.i(0, cols - 2); val uy = ground + s.i(3, 12)
+            pp.cell(ux, uy, gold, 160); pp.cell(ux + 1, uy + 1, gold, 160)
+        }
+        repeat(s.count(4)) {
+            val ux = s.i(0, cols - 4); val uy = ground + s.i(4, 12)
+            for (dx in 0..3) pp.cell(ux + dx, uy, Color.rgb(235, 232, 220), 120)
+        }
+        repeat(s.count(14)) {
             val fx = s.i(0, cols)
             pp.cell(fx, ground - 1, if (s.chance(0.5f)) Color.rgb(255, 120, 160) else Color.rgb(255, 230, 120))
             pp.cell(fx, ground - 2, Color.rgb(90, 190, 100))
         }
-        // Birds crossing the sky.
-        repeat(s.count(3)) { pp.sprite(bird, s.i(2, cols - 8), s.i(3, rows / 3), mapOf('1' to Color.WHITE)) }
-        // Floating platforms with coins.
+        // Floating platforms with coins, and ? blocks, all in the band.
         repeat(s.i(2, 4)) {
-            val pgx = s.i(4, cols - 14)
-            val pgy = s.i((rows * 0.45f).toInt(), (rows * 0.7f).toInt())
+            val pgx = s.i(inset, cols - inset - 10)
+            val pgy = s.i((rows * 0.34f).toInt(), ground - 14)
             for (dx in 0 until 10) { pp.cell(pgx + dx, pgy, grass); pp.cell(pgx + dx, pgy + 1, Color.rgb(150, 100, 60)) }
             for (c in 0 until 3) {
                 val coinX = pgx + 2 + c * 3
-                pp.cell(coinX, pgy - 3, Color.rgb(255, 215, 70)); pp.cell(coinX, pgy - 4, Color.rgb(255, 215, 70))
-                s.softGlow((coinX + 0.5f) * pp.px, (pgy - 3) * pp.px, 24f, Color.rgb(255, 215, 70), 90)
+                pp.cell(coinX, pgy - 3, gold); pp.cell(coinX, pgy - 4, gold)
+                s.softGlow((coinX + 0.5f) * pp.px, (pgy - 3) * pp.px, 24f, gold, 90)
             }
         }
-        // Things that want the hero dead, and things that help.
-        repeat(s.count(3)) { pp.sprite(bat, s.i(4, cols - 10), s.i((rows * 0.3f).toInt(), (rows * 0.55f).toInt()), mapOf('1' to Color.rgb(140, 90, 200))) }
-        pp.sprite(skeleton, (cols * 0.45f).toInt(), ground - 10, mapOf('1' to Color.rgb(235, 235, 225)))
-        pp.sprite(mushroom, (cols * 0.1f).toInt(), ground - 6, mapOf('2' to Color.rgb(230, 60, 60), '3' to Color.WHITE, '1' to Color.rgb(240, 225, 200)))
         repeat(s.count(3)) {
-            val qx = s.i(5, cols - 12); val qy = s.i((rows * 0.35f).toInt(), (rows * 0.5f).toInt())
+            val qx = s.i(inset, cols - inset - 6); val qy = s.i((rows * 0.3f).toInt(), (rows * 0.37f).toInt())
             for (dx in 0 until 5) for (dy in 0 until 5) pp.cell(qx + dx, qy + dy, if (dx == 0 || dy == 0 || dx == 4 || dy == 4) Color.rgb(160, 100, 30) else Color.rgb(255, 190, 50))
-            pp.cell(qx + 2, qy + 1, Color.rgb(120, 70, 20)); pp.cell(qx + 3, qy + 1, Color.rgb(120, 70, 20)); pp.cell(qx + 3, qy + 2, Color.rgb(120, 70, 20)); pp.cell(qx + 2, qy + 3, Color.rgb(120, 70, 20))
+            val m = Color.rgb(120, 70, 20)
+            pp.cell(qx + 2, qy + 1, m); pp.cell(qx + 3, qy + 1, m); pp.cell(qx + 3, qy + 2, m); pp.cell(qx + 2, qy + 3, m)
         }
+        // Bats and birds above the action.
+        repeat(s.count(3)) { pp.sprite(bat, s.i(inset, cols - inset - 8), s.i((rows * 0.28f).toInt(), (rows * 0.36f).toInt()), mapOf('1' to Color.rgb(140, 90, 200))) }
+        repeat(s.count(2)) { pp.sprite(bird, s.i(inset, cols - inset - 8), s.i((rows * 0.22f).toInt(), (rows * 0.27f).toInt()), mapOf('1' to Color.WHITE)) }
+        // The cast: hero, slime, skeleton, mushroom, chest, and a flag at the end of the level.
         val colors = mapOf(
             '1' to Color.rgb(60, 40, 30), '2' to Color.rgb(250, 200, 160), '3' to Color.BLACK,
-            '4' to s.color(0), '5' to Color.rgb(255, 215, 70), '6' to Color.rgb(200, 200, 220),
+            '4' to s.color(0), '5' to gold, '6' to Color.rgb(200, 200, 220),
         )
-        pp.sprite(hero, (cols * 0.25f).toInt(), ground - 10, colors)
-        pp.sprite(slime, (cols * 0.62f).toInt(), ground - 7, mapOf('1' to s.color(1), '7' to Color.WHITE, '8' to Color.BLACK))
-        pp.sprite(chest, (cols * 0.82f).toInt().coerceAtMost(cols - 11), ground - 6, mapOf('3' to Color.rgb(120, 80, 40), '9' to Color.rgb(255, 200, 60)))
-        // HUD.
-        for (k in 0 until 3) pp.sprite(heart, 2 + k * 9, 6, mapOf('1' to Color.rgb(255, 70, 90)))
-        s.canvas.drawText("SCORE 004200", s.w - 40f, 6 * pp.px + 60f, s.textPaint(40f, Color.WHITE, Typeface.MONOSPACE, Paint.Align.RIGHT))
-        s.canvas.drawText("✦ x 42", s.w - 40f, 6 * pp.px + 110f, s.textPaint(36f, Color.rgb(255, 215, 70), Typeface.MONOSPACE, Paint.Align.RIGHT))
-        s.canvas.drawText("WORLD 1-4", 40f, 12 * pp.px + 50f, s.textPaint(40f, Color.WHITE, Typeface.MONOSPACE, Paint.Align.LEFT))
-        s.canvas.drawText("TIME 318", 40f, 12 * pp.px + 100f, s.textPaint(36f, Color.rgb(200, 200, 220), Typeface.MONOSPACE, Paint.Align.LEFT))
-        s.canvas.drawText("PRESS START", s.cx, s.h * 0.93f, s.textPaint(44f, Color.WHITE, Typeface.MONOSPACE))
+        pp.sprite(hero, (cols * 0.26f).toInt(), ground - 10, colors)
+        pp.sprite(slime, (cols * 0.55f).toInt(), ground - 7, mapOf('1' to s.color(1), '7' to Color.WHITE, '8' to Color.BLACK))
+        pp.sprite(skeleton, (cols * 0.42f).toInt(), ground - 10, mapOf('1' to Color.rgb(235, 235, 225)))
+        pp.sprite(mushroom, (cols * 0.14f).toInt(), ground - 6, mapOf('2' to Color.rgb(230, 60, 60), '3' to Color.WHITE, '1' to Color.rgb(240, 225, 200)))
+        pp.sprite(chest, (cols * 0.7f).toInt().coerceAtMost(cols - 11), ground - 6, mapOf('3' to Color.rgb(120, 80, 40), '9' to Color.rgb(255, 200, 60)))
+        val fx = cols - inset + 1
+        for (y in 0 until 14) pp.cell(fx, ground - 1 - y, Color.rgb(220, 220, 230))
+        for (y in 0 until 4) for (x in 1..(4 - y)) pp.cell(fx + x, ground - 14 + y, Color.rgb(230, 60, 80))
+        // HUD: inside the safe margins, below the status bar and above the widgets.
+        val mono = Typeface.MONOSPACE
+        val side = s.w * 0.12f
+        for (k in 0 until 3) pp.sprite(heart, (side / pp.px).toInt() + k * 9, (rows * 0.042f).toInt(), mapOf('1' to Color.rgb(255, 70, 90)))
+        s.canvas.drawText("SCORE 004200", s.w - side, s.h * 0.058f, s.textPaint(34f, Color.WHITE, mono, Paint.Align.RIGHT))
+        s.canvas.drawText("✦ x 42", s.w - side, s.h * 0.078f, s.textPaint(30f, gold, mono, Paint.Align.RIGHT))
+        s.canvas.drawText("WORLD 1-4", side, s.h * 0.092f, s.textPaint(30f, Color.WHITE, mono, Paint.Align.LEFT))
+        s.canvas.drawText("TIME 318", s.cx + 40f, s.h * 0.092f, s.textPaint(30f, Color.rgb(200, 200, 220), mono, Paint.Align.CENTER))
+        s.canvas.drawText("PRESS START", s.cx, s.h * 0.262f, s.textPaint(34f, withAlpha(Color.WHITE, 200), mono))
     }
 }
 

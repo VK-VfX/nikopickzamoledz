@@ -30,7 +30,7 @@ fun ZamoledApp(linkedKey: String? = null, onLinkShown: () -> Unit = {}) {
     val context = LocalContext.current
     val favorites = remember { FavoritesStore(context.applicationContext) }
     val prefs = remember { Prefs(context.applicationContext) }
-    val home = rememberHomeState()
+    val home = rememberHomeState(prefs)
     var openKey by rememberSaveable { mutableStateOf<String?>(null) }
 
     // A shared link opens its wallpaper straight away, whatever screen the app was on.

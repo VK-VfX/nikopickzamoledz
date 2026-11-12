@@ -377,37 +377,3 @@ object StormCell : Style("storm_cell", "Storm Cell", Category.NATURE) {
     }
 }
 
-/** A bare tree on a hill, hit by lightning: its branches rim-lit against a sky that has just turned violet. */
-object ThunderTree : Style("storm_tree", "Thunder Tree", Category.NATURE) {
-    override val autoPalettes = listOf("storm", "storm", "violet", "cyan", "sunset")
-
-    override fun draw(s: Scene) {
-        val c0 = s.color(0); val c1 = s.color(1); val c2 = s.color(2)
-        val tx = s.cx + s.f(-120f, 120f)
-        val ground = s.h * 0.6f
-        val crownY = ground - s.h * 0.2f
-        s.softGlow(tx, crownY - 60f, 640f, c2, 90)
-        s.softGlow(tx, crownY, 340f, c1, 70)
-        // Branches, grown recursively and recorded so they can be drawn twice: rim light, then black.
-        class Seg(val x1: Float, val y1: Float, val x2: Float, val y2: Float, val wd: Float)
-        val segs = ArrayList<Seg>()
-        fun grow(x: Float, y: Float, ang: Float, len: Float, wd: Float, depth: Int) {
-            val x2 = x + cos(ang) * len; val y2 = y + sin(ang) * len
-            segs += Seg(x, y, x2, y2, wd)
-            if (depth <= 0) return
-            val kids = if (depth > 3) 2 else s.i(2, 4)
-            repeat(kids) {
-                grow(x2, y2, ang + s.f(-0.75f, 0.75f), len * s.f(0.68f, 0.85f), wd * 0.68f, depth - 1)
-            }
-        }
-        grow(tx, ground + 10f, -PI.toFloat() / 2f + s.f(-0.08f, 0.08f), s.h * 0.075f, 17f, 7)
-        for (g in segs) s.canvas.drawLine(g.x1, g.y1, g.x2, g.y2, s.stroke(lighten(c0, 0.35f), g.wd + 3.2f, 190, 3f))
-        for (g in segs) s.canvas.drawLine(g.x1, g.y1, g.x2, g.y2, s.stroke(Color.BLACK, g.wd))
-        // The bolt that hits the crown.
-        val top = segs.minByOrNull { it.y2 }!!
-        s.forkedBolt(top.x2 + s.f(-60f, 60f), s.h * 0.06f, top.x2, top.y2, 3.4f, lighten(c0, 0.55f), c1)
-        s.glowDot(top.x2, top.y2, 8f, Color.WHITE, 26f)
-        // The hill.
-        s.hills(ground, 22f, lighten(c0, 0.2f), s.f(0f, 50f))
-    }
-}

@@ -72,8 +72,6 @@ enum class Category(val label: String) {
     WORDS("Words"),
     MATERIAL("For Pixel"),
     MINIMAL("Minimal"),
-    GEOMETRIC("Geometric"),
-    SPACE("Space"),
     NATURE("Nature"),
     AUDIO("Audio"),
     CITY("City"),
@@ -214,7 +212,8 @@ class Scene(
     val cx: Float get() = w / 2f
     val cy: Float get() = h / 2f
 
-    fun count(base: Int): Int = max(1, (base * density).roundToInt())
+    /** How many of something to draw. Detail grows it a little faster than linearly, so the top of the slider is noticeably richer. */
+    fun count(base: Int): Int = max(1, (base * Math.pow(density.toDouble(), 1.15).toFloat()).roundToInt())
     fun f(): Float = rnd.nextFloat()
     fun f(a: Float, b: Float): Float = a + rnd.nextFloat() * (b - a)
     fun i(a: Int, bExclusive: Int): Int = rnd.nextInt(a, bExclusive)
@@ -347,16 +346,19 @@ object Renderer {
     }
 
     /**
-     * Pushes dim pixels to pure black. Anything darker than the threshold switches off completely,
-     * and the band just above it fades in, so glows end in a soft edge instead of a hard cut.
+     * Pushes dim pixels to pure black. Anything darker than the threshold switches off completely and the
+     * band above it fades in along a smooth curve, so glows end softly. The band is dithered with a 4x4
+     * ordered pattern, which stops long gradients from breaking into visible steps, and colour is kept
+     * exactly (all three channels scale together), so a dimmed pink stays pink.
      */
     fun crush(bmp: Bitmap, level: Float) {
         // Squared, so the first half of the slider only trims faint haze and the top end is ruthless.
         val l = level.coerceIn(0f, 1f)
-        val t = (l * l * 64f).toInt().coerceAtLeast(1)
-        val knee = t + t / 2 + 8
+        val t = (l * l * 72f).coerceAtLeast(1f)
+        val knee = t * 1.6f + 10f
         val w = bmp.width
         val row = IntArray(w)
+        val bayer = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
         for (y in 0 until bmp.height) {
             bmp.getPixels(row, 0, w, 0, y, w, 1)
             var changed = false
@@ -368,10 +370,12 @@ object Renderer {
                 val m = if (r > g) (if (r > b) r else b) else (if (g > b) g else b)
                 if (m == 0 || m >= knee) continue
                 changed = true
-                if (m <= t) {
+                // A fraction of a level either way, by position, decides which side of the edge a pixel falls on.
+                val md = m + (bayer[(y and 3) * 4 + (x and 3)] - 7.5f) * 0.18f
+                if (md <= t) {
                     row[x] = -0x1000000
                 } else {
-                    val f = (m - t).toFloat() / (knee - t)
+                    val f = ((md - t) / (knee - t)).coerceIn(0f, 1f)
                     val k = f * f * (3f - 2f * f)
                     row[x] = -0x1000000 or ((r * k).toInt() shl 16) or ((g * k).toInt() shl 8) or (b * k).toInt()
                 }
@@ -399,20 +403,18 @@ object Renderer {
 object Styles {
     /** Styles shown in the app, grouped by world. */
     val all: List<Style> = listOf(
-        StickerBomb, Gouache, Chalk, SpaceDoodles, Gatti, GattiSketch,
+        StickerBomb, Gouache, Chalk, SpaceDoodles, Gatti,
         M3Bloom, M3Cookies, M3Waves, M3Pills, M3Arches, M3Blobs, M3Ribbons, M3Components, M3Aura, M3Overlap,
         LoneTree, KoiPond, MoonFisher, LineConstellation, OneLine, Contours, Orbits, Glance,
-        CrystalCave, ArtDecoTower, FloatingIsle,
-        AstronautDrift, RingedWorld, BlackHole, Eclipse,
         Rooftops, Skyline, NightHighway,
         DataRain,
-        PixelCastle, PixelQuest, PixelSunset, PixelPlanet, PixelTrain, PixelLighthouse, PixelArcade,
+        PixelCastle, PixelQuest, PixelSunset, PixelGalaxy, PixelLighthouse,
         LanternFestival, Candles, Jellyfish, Fireflies,
     ) + NatureWorld.styles + GlitchWorld.styles + LabWorld.styles + WordsWorld.styles
 
     /** Retired styles: hidden from browsing but still able to open saved favourites. */
     private val retired: List<Style> = listOf(
-        Halo, Horizon, Silk, PolygonTunnel, DotMatrix, Isometric, Starfield, Constellations,
+        Halo, Horizon, Silk,
         Topographic, Mountains,
         SpectrumBars, CircularSpectrum, Oscilloscope,
         GlitchBlocks, PixelDrip, PixelHearts, Bokeh, LightTrails, NeonRain,
@@ -440,10 +442,10 @@ object Styles {
         // Nature
         "aurora_night" to "Sky", "starry_pines" to "Sky", "moon_path" to "Water", "moonlit_peaks" to "Land",
         "fire_camp" to "Fire", "fire_embers" to "Fire", "fire_inferno" to "Fire", "fire_volcano" to "Fire", "fire_flame" to "Fire",
-        "storm_strike" to "Lightning", "storm_cell" to "Lightning", "storm_tree" to "Lightning",
+        "storm_strike" to "Lightning", "storm_cell" to "Lightning", 
         // Pixel Bits
-        "pixel_castle" to "Games", "pixel_quest" to "Games", "pixel_sunset" to "Scenes", "pixel_planet" to "Scenes",
-        "pixel_train" to "Scenes", "pixel_lighthouse" to "Scenes", "pixel_arcade" to "Games",
+        "pixel_castle" to "Games", "pixel_quest" to "Games", "pixel_sunset" to "Scenes", "pixel_planet" to "Games",
+        "pixel_lighthouse" to "Scenes",
         // Glitch
         "data_rain" to "Signal", "wet_street" to "Cyberpunk", "source_code" to "Code", "code_diff" to "Code", "code_panic" to "Code", "code_hex" to "Code", "code_fall" to "Code",
         "code_poster" to "Code", "code_corrupt" to "Code", "code_build" to "Code",
@@ -452,7 +454,7 @@ object Styles {
         "m3_waves" to "Flow", "m3_ribbons" to "Flow",
         "m3_pills" to "Pattern", "m3_arches" to "Pattern",
         "m3_components" to "Interface", "m3_aura" to "Glow", "m3_overlap" to "Glow",
-        "gatti" to "Cats", "gatti_sketch" to "Cats",
+        "gatti" to "Cats",
         "space_doodles" to "Space",
     )
 
