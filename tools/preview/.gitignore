@@ -1,4 +1,6 @@
 deps/
 out/
+out*/
+o[0-9]*/
 build/
 .gradle/

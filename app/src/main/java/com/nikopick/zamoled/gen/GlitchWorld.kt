@@ -29,7 +29,7 @@ import kotlin.math.sqrt
 
 /** Draws into a transparent layer the same size as the picture, so it can be torn up afterwards. */
 private inline fun Scene.layer(draw: (Scene) -> Unit): Bitmap {
-    val k = canvas.width / Renderer.VIRTUAL_WIDTH
+    val k = canvas.width / w
     val bmp = Bitmap.createBitmap(canvas.width, (h * k).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     c.scale(k, k)

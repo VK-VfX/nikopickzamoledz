@@ -96,6 +96,13 @@ jobs:
         id: version
         run: echo "name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
 
+      - name: Pick release notes
+        id: notes
+        run: |
+          f="release-notes/${{ steps.version.outputs.name }}.md"
+          [ -f "$f" ] || f="release-notes/default.md"
+          echo "file=$f" >> "$GITHUB_OUTPUT"
+
       # Tag pushes publish their own release; pushes to the release branch publish v<versionName>.
       - name: Publish release
         # Only publish APKs signed with the permanent key, so every release updates the last one.
@@ -106,16 +113,68 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Zamoled ${{ steps.version.outputs.name }}
           make_latest: true
-          body: |
-            Generative pitch-black AMOLED wallpapers for Android 10+.
-
-            **Install:** download `zamoled-release.apk` below on your phone and open it (allow installs from your browser if asked). From 1.2.0 on, the app tells you when a new version is out, and new versions install over the old one.
-            `zamoled-debug.apk` is a debuggable build for testing.
-
-            - 76 styles across 15 worlds. New: daily auto-wallpaper, a black-level slider, clock preview, matching lock and home pairs, swipe to compare, share links, search, style pages, history, a Words world for your own text, and minimal line and always-on designs
-            - Sub-categories inside every world, so you narrow the feed instead of scrolling it
-            - 14 palettes, including Material You
-            - Detail slider, doodle arrangements, and a live "pitch black %" readout
-            - Save PNG at screen size, QHD+ or 4K; set as home, lock or both
-            - Favorites, Shuffle and Surprise me
+          body_path: ${{ steps.notes.outputs.file }}
           files: out/*.apk
+
+  # The Windows app: the same generators drawn on a desktop JVM through Robolectric's native graphics,
+  # packaged with its own Java runtime. It is tested on Windows itself before it is released.
+  windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Fetch the Android framework jar
+        shell: bash
+        run: |
+          mkdir -p tools/desktop/deps
+          J=android-all-instrumented-15-robolectric-13954326-i7.jar
+          curl -fL --retry 5 --retry-delay 5 -o "tools/desktop/deps/$J" \
+            "https://maven-central.storage-download.googleapis.com/maven2/org/robolectric/android-all-instrumented/15-robolectric-13954326-i7/$J"
+          ls -la tools/desktop/deps
+
+      - name: Draw test pictures on Windows
+        shell: bash
+        working-directory: tools/desktop
+        run: bash ./gradlew test --console=plain --stacktrace
+
+      - name: Build the Windows app
+        shell: bash
+        working-directory: tools/desktop
+        run: bash ./gradlew distZip --console=plain --stacktrace
+
+      - name: Keep the test pictures
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-pictures
+          path: tools/desktop/build/smoke/*.png
+
+      - name: Read app version
+        id: version
+        shell: bash
+        run: echo "name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      - name: Pick release notes
+        id: notes
+        shell: bash
+        run: |
+          f="release-notes/${{ steps.version.outputs.name }}.md"
+          [ -f "$f" ] || f="release-notes/default.md"
+          echo "file=$f" >> "$GITHUB_OUTPUT"
+
+      - name: Add to the release
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/hopeful-noether-lcc0fj'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.version.outputs.name) }}
+          target_commitish: ${{ github.sha }}
+          name: Zamoled ${{ steps.version.outputs.name }}
+          body_path: ${{ steps.notes.outputs.file }}
+          files: tools/desktop/build/release/Zamoled-Windows-x64.zip

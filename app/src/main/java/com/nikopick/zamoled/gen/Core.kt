@@ -216,7 +216,8 @@ class Scene(
     fun count(base: Int): Int = max(1, (base * Math.pow(density.toDouble(), 1.15).toFloat()).roundToInt())
     fun f(): Float = rnd.nextFloat()
     fun f(a: Float, b: Float): Float = a + rnd.nextFloat() * (b - a)
-    fun i(a: Int, bExclusive: Int): Int = rnd.nextInt(a, bExclusive)
+    /** A whole number in [a, bExclusive); when a scene is squeezed so the range is empty, the lower end. */
+    fun i(a: Int, bExclusive: Int): Int = if (bExclusive <= a) a else rnd.nextInt(a, bExclusive)
     fun chance(p: Float): Boolean = rnd.nextFloat() < p
 
     /** Roughly gaussian in [-1, 1]. */
@@ -303,11 +304,15 @@ object Renderer {
     /** Share of the screen height kept clear for the launcher clock and weather widgets. */
     const val SAFE_TOP = 0.2f
 
-    fun render(spec: WallpaperSpec, widthPx: Int, heightPx: Int): Bitmap {
+    /**
+     * Draws [spec] into a bitmap. The picture is laid out on a canvas [virtualWidth] units wide, 1000 for a phone;
+     * a wide desktop screen asks for more, so scenes get room to spread instead of being squeezed flat.
+     */
+    fun render(spec: WallpaperSpec, widthPx: Int, heightPx: Int, virtualWidth: Float = VIRTUAL_WIDTH): Bitmap {
         val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(Color.BLACK)
-        val scale = widthPx / VIRTUAL_WIDTH
+        val scale = widthPx / virtualWidth
         // Widget-safe: the picture is composed on the lower part of the screen and fades in under the widgets.
         val shift = spec.safe && !spec.style.widgetSafe
         val top = if (shift) (heightPx * SAFE_TOP).toInt() else 0
@@ -318,7 +323,7 @@ object Renderer {
         canvas.scale(scale, scale)
         val scene = Scene(
             canvas = canvas,
-            w = VIRTUAL_WIDTH,
+            w = virtualWidth,
             h = artPx / scale,
             rnd = Random(spec.seed),
             palette = spec.palette,
