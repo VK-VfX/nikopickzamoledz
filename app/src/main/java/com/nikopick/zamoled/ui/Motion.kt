@@ -68,10 +68,7 @@ fun Modifier.enterOnce(key: String, index: Int): Modifier {
     return graphicsLayer {
         val p = progress.value
         alpha = p.coerceIn(0f, 1f)
-        translationY = (1f - p) * 80f
-        val s = 0.9f + 0.1f * p
-        scaleX = s
-        scaleY = s
+        translationY = (1f - p) * 60f
     }
 }
 

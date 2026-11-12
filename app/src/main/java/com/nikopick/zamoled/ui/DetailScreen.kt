@@ -756,7 +756,7 @@ private fun TopControls(spec: WallpaperSpec, favorite: Boolean, clock: Boolean, 
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
             ) {
-                ShapeIcon(spec.style.category, active = false, size = 36.dp, spin = true)
+                ShapeIcon(spec.style.category, active = false, size = 36.dp, spin = false)
                 Column {
                     Text(spec.style.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
                     Text(

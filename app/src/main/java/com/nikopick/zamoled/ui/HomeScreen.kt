@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.slideInVertically
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.LinearProgressIndicator
@@ -335,6 +337,12 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, prefs: Prefs
     val subcategories = remember(state.filter) { category?.let { Styles.subcategories(it) }.orEmpty() }
     val showSubs = subcategories.size > 1 && !focused
     val grid = state.exploreGrid
+    // Drawing ahead waits for the feed to stop moving, then fills in the rest of the batch quietly.
+    LaunchedEffect(grid) { snapshotFlow { grid.isScrollInProgress }.collect { ThumbCache.scrolling = it } }
+    LaunchedEffect(specs) {
+        delay(700)
+        ThumbCache.prefetch(specs)
+    }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(112.dp),
@@ -425,7 +433,6 @@ private fun ExploreTab(state: HomeState, favorites: FavoritesStore, prefs: Prefs
                 index = i,
                 favorite = spec.key in favorites.keys,
                 onClick = { onOpen(spec) },
-                modifier = Modifier.animateItem(),
             )
         }
         if (specs.isNotEmpty()) item(key = "feed-end", span = { GridItemSpan(maxLineSpan) }) {
@@ -738,13 +745,7 @@ private fun FeaturedCard(spec: WallpaperSpec, onClick: () -> Unit, modifier: Mod
         modifier = modifier.fillMaxWidth().height(420.dp).pressScale(interaction, 0.96f),
     ) {
         Box(Modifier.fillMaxSize().sharedWallpaper(spec.key, shape)) {
-            Crossfade(targetState = bitmap, label = "featured") { b ->
-                if (b != null) {
-                    Image(remember(b) { b.asImageBitmap() }, contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                } else {
-                    Box(Modifier.fillMaxSize().shimmer())
-                }
-            }
+            ThumbImage(bitmap, spec.style.name, Modifier.fillMaxSize())
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -808,13 +809,7 @@ fun WallpaperCard(
             .pressScale(interaction),
     ) {
         Box(Modifier.fillMaxSize().sharedWallpaper(spec.key, shape)) {
-            Crossfade(targetState = bitmap, label = "thumb") { b ->
-                if (b != null) {
-                    Image(remember(b) { b.asImageBitmap() }, contentDescription = spec.style.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                } else {
-                    Box(Modifier.fillMaxSize().shimmer())
-                }
-            }
+            ThumbImage(bitmap, spec.style.name, Modifier.fillMaxSize())
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -902,18 +897,7 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
             .pressScale(interaction, 0.95f),
     ) {
         Box(Modifier.fillMaxSize()) {
-            Crossfade(targetState = bitmap, label = "catThumb") { b ->
-                if (b != null) {
-                    Image(
-                        remember(b) { b.asImageBitmap() },
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.75f },
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize().shimmer())
-                }
-            }
+            ThumbImage(bitmap, null, Modifier.fillMaxSize(), alpha = 0.75f)
             Box(
                 Modifier
                     .fillMaxSize()
@@ -922,7 +906,7 @@ private fun CategoryCard(category: Category, index: Int, onClick: () -> Unit) {
             Column(Modifier.fillMaxHeight().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
                     Text("%02d".format(index + 1), style = MaterialTheme.typography.displaySmall, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.weight(1f))
-                    ShapeIcon(category, active = pressed, size = 40.dp, container = container, content = onContainer)
+                    ShapeIcon(category, active = pressed, size = 40.dp, container = container, content = onContainer, spin = false)
                 }
                 Spacer(Modifier.weight(1f))
                 Text(category.label, style = MaterialTheme.typography.headlineSmall, color = Color.White)
@@ -963,7 +947,7 @@ private fun FavoritesTab(state: HomeState, favorites: FavoritesStore, onOpen: (W
             }
         }
         itemsIndexed(specs, key = { _, s -> s.key }) { i, spec ->
-            WallpaperCard(spec, i, favorite = true, onClick = { onOpen(spec) }, modifier = Modifier.animateItem())
+            WallpaperCard(spec, i, favorite = true, onClick = { onOpen(spec) })
         }
     }
 }

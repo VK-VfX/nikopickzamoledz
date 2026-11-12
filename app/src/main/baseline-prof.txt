@@ -1,0 +1,3 @@
+# Compile the app's own code ahead of time so the first scrolls are not interpreted.
+HSPLcom/nikopick/zamoled/**;->**(**)**
+Lcom/nikopick/zamoled/**;
