@@ -652,26 +652,13 @@ private fun UpdateBanner(ota: OtaState) {
                 }
                 Text("A new version is ready", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    when (ota.phase) {
-                        OtaPhase.DOWNLOADING -> "Downloading… ${(ota.progress * 100).toInt()}%"
-                        OtaPhase.READY -> "Downloaded. Install it over this version; your favorites stay."
-                        OtaPhase.ERROR -> ota.message ?: "Something went wrong."
-                        else -> "Updates download inside the app and install over this one."
-                    },
+                    "Download opens it in your browser; tap the finished file to install it over this version. Your favorites stay.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(end = 10.dp),
                 )
-                if (ota.phase == OtaPhase.DOWNLOADING) {
-                    LinearProgressIndicator(progress = { ota.progress }, modifier = Modifier.fillMaxWidth().padding(end = 10.dp))
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    when (ota.phase) {
-                        OtaPhase.READY -> Button(onClick = { ota.install() }) { Text("Install") }
-                        OtaPhase.DOWNLOADING -> Button(onClick = {}, enabled = false) { Text("Downloading") }
-                        OtaPhase.ERROR -> Button(onClick = { ota.download() }) { Text("Try again") }
-                        else -> Button(onClick = { ota.download() }) { Text("Download" + if (info.size > 0) "  ·  %.1f MB".format(info.size / 1_048_576f) else "") }
-                    }
+                    Button(onClick = { ota.download() }) { Text("Download" + if (info.size > 0) "  ·  %.1f MB".format(info.size / 1_048_576f) else "") }
                     TextButton(onClick = { ota.dismissed = true }) { Text("Not now") }
                 }
             }

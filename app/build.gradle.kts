@@ -12,8 +12,8 @@ android {
         applicationId = "com.nikopick.zamoled"
         minSdk = 29
         targetSdk = 35
-        versionCode = 27
-        versionName = "6.0.1"
+        versionCode = 28
+        versionName = "6.0.2"
     }
 
     // A permanent key (from GitHub Secrets in CI) signs every build, so each new APK installs as an
@@ -26,6 +26,8 @@ android {
                 storePassword = System.getenv("ZAMOLED_KEY_PASSWORD")
                 keyAlias = System.getenv("ZAMOLED_KEY_ALIAS") ?: "zamoled"
                 keyPassword = System.getenv("ZAMOLED_KEY_PASSWORD")
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
@@ -44,6 +46,13 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = appSigning
         }
+    }
+
+    // The build adds an encrypted "dependency metadata" block to the APK for Google Play. This app is not
+    // distributed through Play, and a block nobody can read is exactly what a scanner learns to distrust.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     compileOptions {

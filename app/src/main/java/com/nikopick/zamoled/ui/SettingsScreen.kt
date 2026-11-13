@@ -98,30 +98,21 @@ fun SettingsScreen(ota: OtaState, prefs: Prefs, onBack: () -> Unit, onDaily: () 
                 val status = when (ota.phase) {
                     OtaPhase.CHECKING -> "Checking for a new version…"
                     OtaPhase.UP_TO_DATE -> "You are on the latest version."
-                    OtaPhase.AVAILABLE -> "A new version is ready to download${ota.info?.size?.let { if (it > 0) " (${mb(it)})" else "" }.orEmpty()}."
-                    OtaPhase.DOWNLOADING -> "Downloading… ${(ota.progress * 100).roundToInt()}%"
-                    OtaPhase.READY -> "Downloaded. Install to update; your wallpapers and favorites stay."
+                    OtaPhase.AVAILABLE -> "A new version is ready${ota.info?.size?.let { if (it > 0) " (${mb(it)})" else "" }.orEmpty()}. Download opens it in your browser; tap the finished file to update. Your favorites stay."
                     OtaPhase.ERROR -> ota.message ?: "Something went wrong."
                     OtaPhase.IDLE -> "Tap check to look for a new version."
                 }
                 Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (ota.phase == OtaPhase.DOWNLOADING) {
-                    LinearProgressIndicator(progress = { ota.progress }, modifier = Modifier.fillMaxWidth())
-                } else if (ota.phase == OtaPhase.CHECKING) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-                if (ota.phase != OtaPhase.READY && ota.phase != OtaPhase.DOWNLOADING && ota.message != null && ota.phase != OtaPhase.ERROR) {
-                    Text(ota.message!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                }
+                if (ota.phase == OtaPhase.CHECKING) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    when (ota.phase) {
-                        OtaPhase.AVAILABLE -> Button(onClick = { ota.download() }) { Text("Download") }
-                        OtaPhase.READY -> Button(onClick = { ota.install() }) { Text("Install now") }
-                        OtaPhase.DOWNLOADING -> OutlinedButton(onClick = {}, enabled = false) { Text("Downloading") }
-                        OtaPhase.ERROR -> if (ota.info != null) Button(onClick = { ota.download() }) { Text("Try again") } else Button(onClick = { ota.check(manual = true) }) { Text("Check again") }
-                        else -> Button(onClick = { ota.check(manual = true) }, enabled = ota.phase != OtaPhase.CHECKING) { Text("Check for updates") }
+                    if (ota.available) {
+                        Button(onClick = { ota.download() }) { Text("Download") }
+                        TextButton(onClick = { ota.openReleasePage() }) { Text("Release page") }
+                    } else {
+                        Button(onClick = { ota.check(manual = true) }, enabled = ota.phase != OtaPhase.CHECKING) {
+                            Text(if (ota.phase == OtaPhase.ERROR) "Check again" else "Check for updates")
+                        }
                     }
-                    if (ota.available) TextButton(onClick = { ota.info?.let { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it.pageUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }) { Text("Release page") }
                 }
                 val notes = ota.info?.notes.orEmpty()
                 if (ota.available && notes.isNotBlank()) {
@@ -138,7 +129,7 @@ fun SettingsScreen(ota: OtaState, prefs: Prefs, onBack: () -> Unit, onDaily: () 
                 Column(Modifier.weight(1f)) {
                     Text("Check automatically", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Looks for a new version when the app opens and about twice a day, and sends one notification when there is one.",
+                        "Looks for a new version on GitHub when the app opens and about twice a day, and sends one notification when there is one. Nothing is installed without you tapping the file.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -84,16 +84,16 @@ jobs:
           echo "ZAMOLED_KEY_PASSWORD=$PW" >> "$GITHUB_ENV"
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Build debug and release APKs
+      # Only the release build is made and published. A debuggable build is not something to hand out.
+      - name: Build the release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug assembleRelease --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
       - name: Rename APKs
         run: |
           mkdir -p out
           cp app/build/outputs/apk/release/app-release.apk out/zamoled-release.apk
-          cp app/build/outputs/apk/debug/app-debug.apk out/zamoled-debug.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -104,12 +104,25 @@ jobs:
         id: version
         run: echo "name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
 
-      - name: Pick release notes
+      # The notes, plus what is needed to check a download: its checksum and the certificate it is signed with.
+      - name: Write release notes
         id: notes
         run: |
           f="release-notes/${{ steps.version.outputs.name }}.md"
           [ -f "$f" ] || f="release-notes/default.md"
-          echo "file=$f" >> "$GITHUB_OUTPUT"
+          out="$RUNNER_TEMP/notes.md"
+          cp "$f" "$out"
+          APKSIGNER="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          SUM="$(sha256sum out/zamoled-release.apk | cut -d' ' -f1)"
+          CERT="$("$APKSIGNER" verify --print-certs out/zamoled-release.apk | grep -m1 'certificate SHA-256' | sed 's/.*: //')"
+          {
+            echo
+            echo "## Check your download"
+            echo "- APK SHA-256: \`$SUM\`"
+            echo "- Signing certificate SHA-256: \`$CERT\`"
+            echo "- Every release is signed with the same certificate; if it ever differs, do not install it."
+          } >> "$out"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
 
       # Tag pushes publish their own release; pushes to the release branch publish v<versionName>.
       - name: Publish release

@@ -31,7 +31,6 @@ class MainActivity : ComponentActivity() {
         CodeSource.init(assets)
         ThumbCache.init(this)
         Updates.schedule(this, getSharedPreferences("zamoled", MODE_PRIVATE).getBoolean(Prefs.AUTO_UPDATE, true))
-        Updates.cleanOld(this)
         if (savedInstanceState == null) readLink(intent)
         setContent {
             ZamoledTheme {
