@@ -210,6 +210,14 @@ fun SettingsScreen(ota: OtaState, prefs: Prefs, onBack: () -> Unit, onDaily: () 
         AboutLink("Telegram", "@xnzvix", "https://t.me/xnzvix")
         Spacer(Modifier.height(12.dp))
         AboutLink("Source and releases", "GitHub", "https://github.com/VK-VfX/nikopickzamoledz/releases")
+        Spacer(Modifier.height(22.dp))
+        SectionHead("05", "The trio")
+        Spacer(Modifier.height(10.dp))
+        SiblingApp("Purrcast", "Cat-themed weather and widgets", "app.skypix.weather",
+            "https://github.com/VK-VfX/Sam-s-Signal-Stabilizer/blob/claude/signal-stabilizer-game-8le0y5/dist/skypix.apk")
+        Spacer(Modifier.height(12.dp))
+        SiblingApp("Maps and Cats", "Maps, navigation and cats to catch", "app.mapsandcats",
+            "https://github.com/VK-VfX/not-an-ordinary-alarm-clock")
         Spacer(Modifier.height(40.dp))
     }
 }
@@ -223,6 +231,26 @@ private fun AboutLink(title: String, sub: String, url: String) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+/** A sibling app: opens it when installed, otherwise its download page. */
+@Composable
+private fun SiblingApp(name: String, sub: String, pkg: String, url: String) {
+    val context = LocalContext.current
+    val installed = context.packageManager.getLaunchIntentForPackage(pkg) != null
+    LeafCard(Modifier.fillMaxWidth().clickable {
+        val launch = context.packageManager.getLaunchIntentForPackage(pkg)
+        val intent = launch ?: Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }, shape = LeafSm) {
+        Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleMedium)
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(if (installed) "Open" else "Get", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
