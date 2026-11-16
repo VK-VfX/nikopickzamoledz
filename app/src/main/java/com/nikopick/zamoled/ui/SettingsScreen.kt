@@ -42,6 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -188,9 +191,38 @@ fun SettingsScreen(ota: OtaState, prefs: Prefs, onBack: () -> Unit, onDaily: () 
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 2.dp),
         )
-        TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/VK-VfX/nikopickzamoledz/releases")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }) {
-            Text("All releases")
+        Spacer(Modifier.height(14.dp))
+        LeafCard(Modifier.fillMaxWidth(), shape = LeafSm) {
+            Column(Modifier.fillMaxWidth().padding(vertical = 26.dp, horizontal = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(96.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                    Text("Z", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("Nikezvera", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Developer of Zamoled", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(14.dp))
+                Box(Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 14.dp, vertical = 6.dp)) {
+                    Text("Version ${Updates.installedVersion}", style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
+        Spacer(Modifier.height(12.dp))
+        AboutLink("Telegram", "@xnzvix", "https://t.me/xnzvix")
+        Spacer(Modifier.height(12.dp))
+        AboutLink("Source and releases", "GitHub", "https://github.com/VK-VfX/nikopickzamoledz/releases")
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
+private fun AboutLink(title: String, sub: String, url: String) {
+    val context = LocalContext.current
+    LeafCard(Modifier.fillMaxWidth().clickable {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }, shape = LeafSm) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
