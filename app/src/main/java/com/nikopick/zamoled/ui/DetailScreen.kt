@@ -134,6 +134,7 @@ import com.nikopick.zamoled.gen.Palette
 import com.nikopick.zamoled.gen.Palettes
 import com.nikopick.zamoled.gen.Renderer
 import com.nikopick.zamoled.gen.WallpaperSpec
+import com.nikopick.zamoled.gen.Zones
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -355,6 +356,7 @@ fun DetailScreen(initial: WallpaperSpec, favorites: FavoritesStore, onBack: () -
                             onWords = { words = it.take(80).replace('|', ' ').replace('\n', ' ') },
                             onWordsDone = { spec = spec.copy(text = words.trim()) },
                             onSafe = { spec = spec.copy(safe = it) },
+                            onZone = { spec = spec.copy(zone = it) },
                             onDetailPreset = { detail = it; spec = spec.copy(density = it) },
                             onBlackPreset = { blackLevel = it; spec = spec.copy(black = it) },
                             onWhite = { spec = spec.copy(white = it) },
@@ -519,6 +521,7 @@ private fun CustomizePanel(
     onWords: (String) -> Unit,
     onWordsDone: () -> Unit,
     onSafe: (Boolean) -> Unit,
+    onZone: (Int) -> Unit,
     onDetailPreset: (Float) -> Unit,
     onBlackPreset: (Float) -> Unit,
     onWhite: (Boolean) -> Unit,
@@ -621,6 +624,17 @@ private fun CustomizePanel(
                 )
             }
             Switch(checked = built || spec.safe, onCheckedChange = onSafe, enabled = !built)
+        }
+        SectionLabel("Make room for Purrcast")
+        Text(
+            "Dims soft quiet zones where Purrcast's clock and weather cards sit on your home screen.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            Zones.NAMES.forEachIndexed { k, label ->
+                SegmentedButton(selected = spec.zone == k, onClick = { onZone(k) }, shape = SegmentedButtonDefaults.itemShape(k, Zones.COUNT)) { Text(label) }
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("Black level", Modifier.weight(1f))

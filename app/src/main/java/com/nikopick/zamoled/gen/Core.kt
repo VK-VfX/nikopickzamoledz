@@ -99,10 +99,13 @@ data class WallpaperSpec(
     val align: Int = 1,
     /** Words styles: 0 top, 1 middle, 2 bottom. */
     val vpos: Int = 1,
+    /** Purrcast quiet zones: 0 off, 1 clock on top, 2 clock plus two cards (see [Zones]). */
+    val zone: Int = 0,
 ) {
     val key: String get() {
         val opts = (if (safe) "s" else "") + (if (white) "w" else "") +
-            (if (align == 0) "l" else if (align == 2) "r" else "") + (if (vpos == 0) "t" else if (vpos == 2) "b" else "")
+            (if (align == 0) "l" else if (align == 2) "r" else "") + (if (vpos == 0) "t" else if (vpos == 2) "b" else "") +
+            (if (zone > 0) "p$zone" else "")
         return "$styleId|$seed|$paletteId|$density|$layoutId|$black|${text.replace('|', ' ').replace('\n', ' ')}|$opts"
     }
     val style: Style get() = Styles.byId(styleId)
@@ -123,8 +126,38 @@ data class WallpaperSpec(
             val black = if (p.size >= 7) p[5].toFloatOrNull() ?: return null else 0f
             val opts = if (p.size == 8) p[7] else ""
             return WallpaperSpec(p[0], seed, p[2], density, layout, black, if (p.size >= 7) p[6] else "", 's' in opts, 'w' in opts,
-                if ('l' in opts) 0 else if ('r' in opts) 2 else 1, if ('t' in opts) 0 else if ('b' in opts) 2 else 1)
+                if ('l' in opts) 0 else if ('r' in opts) 2 else 1, if ('t' in opts) 0 else if ('b' in opts) 2 else 1,
+                opts.indexOf('p').let { i -> if (i >= 0 && i + 1 < opts.length) (opts[i + 1] - '0').coerceIn(0, Zones.COUNT - 1) else 0 })
         }
+    }
+}
+
+/**
+ * Purrcast quiet zones: soft dark patches where Purrcast's widgets sit on the home screen, so the art never
+ * fights the clock and weather text. Rectangles are fractions of the screen (left, top, right, bottom).
+ */
+object Zones {
+    val NAMES = listOf("Off", "Clock on top", "Clock + 2 cards")
+    val COUNT = NAMES.size
+    private val RECTS = listOf(
+        emptyList(),
+        listOf(floatArrayOf(0.04f, 0.06f, 0.96f, 0.32f)),
+        listOf(
+            floatArrayOf(0.04f, 0.07f, 0.96f, 0.31f),
+            floatArrayOf(0.21f, 0.37f, 0.41f, 0.50f),
+            floatArrayOf(0.61f, 0.32f, 0.95f, 0.54f),
+        ),
+    )
+
+    fun dim(canvas: Canvas, zone: Int, w: Int, h: Int) {
+        val rects = RECTS.getOrNull(zone) ?: return
+        val blur = w * 0.035f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(215, 0, 0, 0)
+            maskFilter = BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL)
+        }
+        val r = w * 0.06f
+        for (q in rects) canvas.drawRoundRect(q[0] * w, q[1] * h, q[2] * w, q[3] * h, r, r, paint)
     }
 }
 
@@ -346,6 +379,7 @@ object Renderer {
             canvas.drawRect(0f, top.toFloat(), widthPx.toFloat(), top + feather, fade)
             canvas.restoreToCount(layer)
         }
+        if (spec.zone > 0) Zones.dim(canvas, spec.zone, widthPx, heightPx)
         if (spec.black > 0.01f) crush(bmp, spec.black)
         return bmp
     }
