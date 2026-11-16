@@ -60,12 +60,13 @@ private val AppTypography = Typography().run {
     )
 }
 
+// One corner radius across Purrcast, Zamoled and Maps and Cats.
 private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(topStart = 18.dp, topEnd = 6.dp, bottomEnd = 18.dp, bottomStart = 6.dp),
-    large = RoundedCornerShape(topStart = 26.dp, topEnd = 7.dp, bottomEnd = 26.dp, bottomStart = 7.dp),
-    extraLarge = RoundedCornerShape(topStart = 34.dp, topEnd = 8.dp, bottomEnd = 34.dp, bottomStart = 8.dp),
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
 /** Material 3 dark scheme with every background surface forced to true black. */
@@ -84,10 +85,15 @@ fun ZamoledTheme(content: @Composable () -> Unit) {
             surfaceContainerHigh = Color(0xFF151519),
             surfaceContainerHighest = Color(0xFF1E1E24),
             outlineVariant = Color.White.copy(alpha = 0.14f),
+            // the family accent shared with Purrcast and Maps and Cats
+            primary = Color(0xFF3DF5D0),
+            onPrimary = Color(0xFF00110D),
+            primaryContainer = Color(0xFF0A4A3F),
+            onPrimaryContainer = Color(0xFFBFFFF0),
         ).also {
             Palettes.you = Palette(
                 "you", "Material You",
-                intArrayOf(it.primary.toArgb(), it.tertiary.toArgb(), it.secondary.toArgb()),
+                intArrayOf(base.primary.toArgb(), base.tertiary.toArgb(), base.secondary.toArgb()),
             )
         }
     }

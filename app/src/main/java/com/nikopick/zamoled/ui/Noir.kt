@@ -41,10 +41,10 @@ import androidx.compose.ui.unit.sp
  */
 
 /** Large cards: soft on one diagonal, nearly square on the other. */
-val Leaf = RoundedCornerShape(topStart = 30.dp, topEnd = 7.dp, bottomEnd = 30.dp, bottomStart = 7.dp)
+val Leaf = RoundedCornerShape(24.dp)
 
 /** Thumbnails and small cards. */
-val LeafSm = RoundedCornerShape(topStart = 20.dp, topEnd = 5.dp, bottomEnd = 20.dp, bottomStart = 5.dp)
+val LeafSm = RoundedCornerShape(20.dp)
 
 val Hairline: Color = Color.White.copy(alpha = 0.12f)
 

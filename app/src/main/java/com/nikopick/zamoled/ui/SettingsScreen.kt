@@ -42,6 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.nikopick.zamoled.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
@@ -194,9 +198,8 @@ fun SettingsScreen(ota: OtaState, prefs: Prefs, onBack: () -> Unit, onDaily: () 
         Spacer(Modifier.height(14.dp))
         LeafCard(Modifier.fillMaxWidth(), shape = LeafSm) {
             Column(Modifier.fillMaxWidth().padding(vertical = 26.dp, horizontal = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(96.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                    Text("Z", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = Color.Black)
-                }
+                Image(painterResource(R.drawable.profile), contentDescription = null, contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(96.dp).clip(CircleShape))
                 Spacer(Modifier.height(16.dp))
                 Text("Nikezvera", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Developer of Zamoled", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
